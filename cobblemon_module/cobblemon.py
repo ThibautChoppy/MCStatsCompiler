@@ -158,3 +158,4 @@ if config['FTP']['UseFTP'] == "true":
 
 #TODO: add option to work with the csv data instead of loading the data everytime
 #TODO: shiny leaderboard (based on "shiny: true" count)
+#TODO: output pokémons not found by anybody

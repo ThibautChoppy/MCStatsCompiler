@@ -125,7 +125,7 @@ df = loadData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPa
 # Small feature to count the times each cobblemon has been caught, not officially supported yet
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
 count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
-#print(count_df['times_caught'].sort_values().to_string())
+print(count_df['times_caught'].sort_values().to_string())
 count_df.drop('times_caught', axis=1, inplace=True)
 
 # Leaderboard feature
@@ -141,3 +141,7 @@ if config['LEADERBOARD']['Enable'] == "true":
 # Close the Connection
 if config['FTP']['UseFTP'] == "true":
     ftp_server.quit()
+
+
+#TODO: add option to work with the csv data instead of loading the data everytime
+#TODO: shiny leaderboard (based on "shiny: true" count)

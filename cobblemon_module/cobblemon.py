@@ -42,7 +42,13 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 
                 temp_df = pd.json_normalize(data, meta_prefix=True)
                 temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
-                temp_df = temp_df.transpose().iloc[1:].rename({0: temp_name.iloc[0]}, axis=1)
+                temp_df = temp_df.transpose().iloc[:]
+                if temp_name.empty:
+                    print("No username found for UUID", filename[:-5], " in names.csv, using UUID for this player instead.")
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
                 
                 if not temp_df.empty:
                     temp_df.index = temp_df.index.str.split('.', expand=True)
@@ -69,7 +75,13 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 # Import the JSON to a Pandas DF
                 temp_df = pd.json_normalize(data, meta_prefix=True)
                 temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
-                temp_df = temp_df.transpose().iloc[1:].rename({0: temp_name.iloc[0]}, axis=1)
+                temp_df = temp_df.transpose().iloc[:]
+                if temp_name.empty:
+                    print("No username found for UUID", filename[:-5], " in names.csv, using UUID for this player instead.")
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
                 # Split the index (stats.blabla.blabla) into 3 indexes (stats, blabla, blabla)
                 if not temp_df.empty:
                     temp_df.index = temp_df.index.str.split('.', expand=True)
@@ -133,7 +145,8 @@ if config['LEADERBOARD']['Enable'] == "true":
     player_sum = pd.DataFrame((count_df == "CAUGHT").sum().sort_values())
     player_sum['index'] = range(len(player_sum), 0, -1)
     player_sum = player_sum.iloc[::-1]
-    player_sum.drop(config['LEADERBOARD']['IgnoreNames'].split(","), inplace=True)
+    ignore_names = [name.strip() for name in config['LEADERBOARD']['IgnoreNames'].split(",") if name.strip()]
+    player_sum.drop(ignore_names, inplace=True, errors='ignore')
     print(player_sum)
     most_pokemons_leaderboard(player_sum.iloc, config)
 

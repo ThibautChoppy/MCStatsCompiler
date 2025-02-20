@@ -178,9 +178,7 @@ if config['LEADERBOARD']['Enable'] == "true":
 
 # Shiny leaderboard feature
 if config['SHINYLEADERBOARD']['Enable'] == "true":
-    player_sum = pd.DataFrame((df == "True").sum().sort_values())
-    print(df)
-    print(player_sum)
+    player_sum = pd.DataFrame((df == "True" or df == True).sum().sort_values())
     player_sum['index'] = range(len(player_sum), 0, -1)
     player_sum = player_sum.iloc[::-1]
     ignore_names = [name.strip() for name in config['SHINYLEADERBOARD']['IgnoreNames'].split(",") if name.strip()]

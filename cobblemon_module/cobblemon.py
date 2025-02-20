@@ -119,6 +119,26 @@ def most_pokemons_leaderboard(df, config):
     ws.cell(row=ExcelRows+4, column=2, value=config['LEADERBOARD']['Subtitle'])
     wb.save(file_path)
 
+def shiny_pokemons_leaderboard(df, config):
+    # Load the Excel file
+    file_path = "output.xlsx"
+    wb = openpyxl.load_workbook(file_path)
+    
+    sheet_name = "leaderboard3"
+    ws = wb[sheet_name]
+    i = 0
+    ExcelRows = int(config['SHINYLEADERBOARD']['ExcelRows'])
+    ExcelCols = int(config['SHINYLEADERBOARD']['ExcelColumns'])
+    for index, row in df[0:ExcelRows*ExcelCols].iterrows():
+        ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
+        ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
+        ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
+        i += 1
+    now = datetime.datetime.now()
+    ws.cell(row=ExcelRows+3, column=2, value="Dernière update le "+now.strftime("%d.%m.%y à %H:%M"))
+    ws.cell(row=ExcelRows+4, column=2, value=config['SHINYLEADERBOARD']['Subtitle'])
+    wb.save(file_path)
+
 
 # Read config
 config = configparser.ConfigParser()
@@ -131,10 +151,16 @@ if config['FTP']['UseFTP'] == "true":
     ftp_server.encoding = "utf-8"
 
 # Load the data
-# To get: table with columns for players and rows for pokemons
-df = loadData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['FTP']['UseFTP'], ftp_server, config['FTP']['Path'])
+if config['GLOBALMATRIX']['UseCSV'] == "false":
+    df = loadData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['FTP']['UseFTP'], ftp_server, config['FTP']['Path'])
+else:
+    df = pd.read_csv(config['GLOBALMATRIX']['CSVPath'], index_col=[0,1,2], skipinitialspace=True)
 
-# Small feature to count the times each cobblemon has been caught, not officially supported yet
+# Close the Connection
+if config['FTP']['UseFTP'] == "true":
+    ftp_server.quit()
+
+# Prepare the counting DF
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
 count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
 print(count_df['times_caught'].sort_values().to_string())
@@ -147,7 +173,7 @@ if config['LEADERBOARD']['Enable'] == "true":
     player_sum = player_sum.iloc[::-1]
     ignore_names = [name.strip() for name in config['LEADERBOARD']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
-    print(player_sum)
+    #print(player_sum)
     most_pokemons_leaderboard(player_sum.iloc, config)
 
 
@@ -159,3 +185,14 @@ if config['FTP']['UseFTP'] == "true":
 #TODO: add option to work with the csv data instead of loading the data everytime
 #TODO: shiny leaderboard (based on "shiny: true" count)
 #TODO: output pokémons not found by anybody
+# Shiny leaderboard feature
+if config['SHINYLEADERBOARD']['Enable'] == "true":
+    player_sum = pd.DataFrame((df == "True").sum().sort_values())
+    print(df)
+    print(player_sum)
+    player_sum['index'] = range(len(player_sum), 0, -1)
+    player_sum = player_sum.iloc[::-1]
+    ignore_names = [name.strip() for name in config['SHINYLEADERBOARD']['IgnoreNames'].split(",") if name.strip()]
+    player_sum.drop(ignore_names, inplace=True, errors='ignore')
+    #print(player_sum)
+    shiny_pokemons_leaderboard(player_sum.iloc, config)

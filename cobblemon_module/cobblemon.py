@@ -163,8 +163,26 @@ if config['FTP']['UseFTP'] == "true":
 # Prepare the counting DF
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
 count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
+print("Seen or caught:", len(count_df))
+# Get yet-uncaught pokemons
+caught_count_df = count_df.loc[count_df['times_caught'] > 0]
+print("Caught only:", len(caught_count_df))
+caught_list = (caught_count_df.index.get_level_values(0) + "_" + caught_count_df.index.get_level_values(1)).to_list()
 #print(count_df['times_caught'].sort_values().to_string())
 count_df.drop('times_caught', axis=1, inplace=True)
+
+uncaught_list = []
+pokemons_db = pd.read_csv('Pokemon.csv')
+for _, row in pokemons_db.iterrows():
+    value = row['Cobblemon'] + "_" + row['Cobblemonform']
+    if value not in caught_list:
+        uncaught_list.append(value)
+#print(uncaught_list)
+print("Not caught yet (or uncatchable):", len(uncaught_list))
+uncaught_excluded_list = list(filter(lambda x: "UNKNOWN" not in x, uncaught_list))
+uncaught_excluded_list.sort()
+print("Not caught yet (or uncatchable), excluding UNKNOWN forms:", len(uncaught_excluded_list))
+print(uncaught_excluded_list)
 
 # Leaderboard feature
 if config['LEADERBOARD']['Enable'] == "true":
@@ -178,7 +196,7 @@ if config['LEADERBOARD']['Enable'] == "true":
 
 # Shiny leaderboard feature
 if config['SHINYLEADERBOARD']['Enable'] == "true":
-    player_sum = pd.DataFrame((df == "True" or df == True).sum().sort_values())
+    player_sum = pd.DataFrame(((df == "True") | (df == True)).sum().sort_values())
     player_sum['index'] = range(len(player_sum), 0, -1)
     player_sum = player_sum.iloc[::-1]
     ignore_names = [name.strip() for name in config['SHINYLEADERBOARD']['IgnoreNames'].split(",") if name.strip()]

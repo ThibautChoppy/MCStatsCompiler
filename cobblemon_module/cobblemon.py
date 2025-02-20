@@ -163,7 +163,7 @@ if config['FTP']['UseFTP'] == "true":
 # Prepare the counting DF
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
 count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
-print(count_df['times_caught'].sort_values().to_string())
+#print(count_df['times_caught'].sort_values().to_string())
 count_df.drop('times_caught', axis=1, inplace=True)
 
 # Leaderboard feature
@@ -176,15 +176,6 @@ if config['LEADERBOARD']['Enable'] == "true":
     #print(player_sum)
     most_pokemons_leaderboard(player_sum.iloc, config)
 
-
-# Close the Connection
-if config['FTP']['UseFTP'] == "true":
-    ftp_server.quit()
-
-
-#TODO: add option to work with the csv data instead of loading the data everytime
-#TODO: shiny leaderboard (based on "shiny: true" count)
-#TODO: output pokémons not found by anybody
 # Shiny leaderboard feature
 if config['SHINYLEADERBOARD']['Enable'] == "true":
     player_sum = pd.DataFrame((df == "True").sum().sort_values())

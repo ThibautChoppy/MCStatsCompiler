@@ -128,7 +128,7 @@ def most_pokemons_leaderboard(df, config, type):
         ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
         i += 1
     now = datetime.datetime.now()
-    ws.cell(row=ExcelRows+3, column=2, value="Dernière update le "+now.strftime("%d.%m.%y à %H:%M"))
+    ws.cell(row=ExcelRows+3, column=2, value=now.strftime(config['LastUpdated']))
     ws.cell(row=ExcelRows+4, column=2, value=config['Subtitle'])
     wb.save(file_path)
 
@@ -155,44 +155,8 @@ if config['FTP']['UseFTP'] == "true":
 
 # Prepare the counting DF
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
-count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
-print("Seen or caught:", len(count_df))
-# Get yet-uncaught pokemons
-caught_count_df = count_df.loc[count_df['times_caught'] > 0]
-print("Caught only:", len(caught_count_df))
-caught_list = (caught_count_df.index.get_level_values(0) + "_" + caught_count_df.index.get_level_values(1)).to_list()
-#print(count_df['times_caught'].sort_values().to_string())
-count_df.drop('times_caught', axis=1, inplace=True)
-
-uncaught_list = []
 pokemons_db = pd.read_csv('Pokemon.csv')
 legendary_list = pokemons_db.loc[pokemons_db['Legendary'] == True]
-uncaught_legendary_list = []
-print("Legendary:", len(legendary_list))
-for _, row in pokemons_db.iterrows():
-    value = row['Cobblemon'] + "_" + row['Cobblemonform']
-    if value not in caught_list:
-        uncaught_list.append(value)
-        if row['Legendary'] == True:
-            uncaught_legendary_list.append(value)
-#print(uncaught_list)
-print("Not caught yet (or uncatchable):", len(uncaught_list))
-print("Not caught yet (or uncatchable), legendary only:", len(uncaught_legendary_list))
-print(uncaught_legendary_list)
-uncaught_excluded_list = list(filter(lambda x: "UNKNOWN" not in x, uncaught_list))
-uncaught_excluded_list.sort()
-print("Not caught yet (or uncatchable), excluding UNKNOWN forms:", len(uncaught_excluded_list))
-#print(uncaught_excluded_list)
-
-# Now do the opposite
-unknown_list = []
-for pokemon in caught_list:
-    values = pokemons_db['Cobblemon'] + "_" + pokemons_db['Cobblemonform']
-    if pokemon not in values.tolist():
-        unknown_list.append(pokemon)
-print("Caught pokemons not found in the db:", len(unknown_list))
-print(unknown_list)
-
 
 # Leaderboard feature
 if config['LEADERBOARD']['Enable'] == "true":

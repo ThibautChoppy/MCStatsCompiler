@@ -7,13 +7,19 @@ import openpyxl
 import datetime
 import ftplib
 import math
+import warnings
 
 
 def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
     df = pd.DataFrame()
-    names = pd.read_csv('../data/names.csv')
     root_dirnames = []
     if useftp == "true":
+        ftpserver.cwd("Minecraft")
+        with open("usercache.json", "wb") as file:
+            ftpserver.retrbinary(f"RETR ../data/usercache.json", file.write)
+        names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
+        ftpserver.cwd("../")
+
         # Get directories
         root_dirnames = ftpserver.nlst(ftppath)
         ftpserver.cwd(ftppath)
@@ -44,7 +50,7 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
                 temp_df = temp_df.transpose().iloc[:]
                 if temp_name.empty:
-                    print("No username found for UUID", filename[:-5], " in names.csv, using UUID for this player instead.")
+                    print("No username found for UUID", filename[:-5], " in usercache.json, using UUID for this player instead.")
                     temp_name = filename[:-5]
                     temp_df = temp_df.rename({0: temp_name}, axis=1)
                 else:
@@ -61,6 +67,8 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 
             ftpserver.cwd("../")  # Move back to the parent directory
     else:
+        names_file = open('../data/usercache.json', 'r')
+        names = pd.DataFrame(json.load(names_file))
         i = -1
         path = 'cobblemonplayerdata'
         for dirpath, dirnames, filenames in os.walk(path):
@@ -77,7 +85,7 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
                 temp_df = temp_df.transpose().iloc[:]
                 if temp_name.empty:
-                    print("No username found for UUID", filename[:-5], " in names.csv, using UUID for this player instead.")
+                    print("No username found for UUID", filename[:-5], " in usercache.json, using UUID for this player instead.")
                     temp_name = filename[:-5]
                     temp_df = temp_df.rename({0: temp_name}, axis=1)
                 else:
@@ -99,7 +107,7 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
     return df
 
 
-def most_pokemons_leaderboard(df, config):
+def most_pokemons_leaderboard(df, config, type):
     # Load the Excel file
     file_path = "output.xlsx"
     wb = openpyxl.load_workbook(file_path)
@@ -139,35 +147,15 @@ def shiny_pokemons_leaderboard(df, config):
     ws.cell(row=ExcelRows+4, column=2, value=config['SHINYLEADERBOARD']['Subtitle'])
     wb.save(file_path)
 
-def leg_pokemons_leaderboard(df, config):
-    # Load the Excel file
-    file_path = "output.xlsx"
-    wb = openpyxl.load_workbook(file_path)
-    
-    sheet_name = "leaderboard4"
-    ws = wb[sheet_name]
-    i = 0
-    ExcelRows = int(config['LEGLEADERBOARD']['ExcelRows'])
-    ExcelCols = int(config['LEGLEADERBOARD']['ExcelColumns'])
-    for index, row in df[0:ExcelRows*ExcelCols].iterrows():
-        ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
-        ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
-        ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
-        i += 1
-    now = datetime.datetime.now()
-    ws.cell(row=ExcelRows+3, column=2, value="Dernière update le "+now.strftime("%d.%m.%y à %H:%M"))
-    ws.cell(row=ExcelRows+4, column=2, value=config['LEGLEADERBOARD']['Subtitle'])
-    wb.save(file_path)
-
 
 # Read config
 config = configparser.ConfigParser()
-config.read('cobblemon_config.ini')
+config.read('cobblemon_config.ini', encoding='utf8')
 
 # Connect to FTP if activated
 ftp_server = None
 if config['FTP']['UseFTP'] == "true":
-    ftp_server = ftplib.FTP(config['FTP']['Host'], open("../username.txt", "r").read(), open("../password.txt", "r").read())
+    ftp_server = ftplib.FTP(config['FTP']['Host'], open("username.txt", "r").read(), open("password.txt", "r").read())
     ftp_server.encoding = "utf-8"
 
 # Load the data
@@ -229,7 +217,7 @@ if config['LEADERBOARD']['Enable'] == "true":
     ignore_names = [name.strip() for name in config['LEADERBOARD']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config)
+    most_pokemons_leaderboard(player_sum, config['LEADERBOARD'], "standard")
 
 # Shiny leaderboard feature
 if config['SHINYLEADERBOARD']['Enable'] == "true":
@@ -239,13 +227,15 @@ if config['SHINYLEADERBOARD']['Enable'] == "true":
     ignore_names = [name.strip() for name in config['SHINYLEADERBOARD']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    shiny_pokemons_leaderboard(player_sum, config)
+    most_pokemons_leaderboard(player_sum, config['SHINYLEADERBOARD'], "shiny")
     
 # Legendary leaderboard feature
 if config['LEGLEADERBOARD']['Enable'] == "true":
     legs = legendary_list['Cobblemon'].tolist()
     leg_count_df = count_df.loc[count_df.index.get_level_values(0).isin(legs)]
-    leg_count_df = leg_count_df.groupby(level=0).agg(lambda x: "CAUGHT" if "CAUGHT" in x.values else 0)
+    with warnings.catch_warnings():
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+        leg_count_df = leg_count_df.groupby(level=0).agg(lambda x: "CAUGHT" if "CAUGHT" in x.values else 0)
     #leg_count_df.to_csv("temp.csv")
     player_sum = pd.DataFrame((leg_count_df == "CAUGHT").sum().sort_values())
     player_sum['index'] = range(len(player_sum), 0, -1)
@@ -253,4 +243,6 @@ if config['LEGLEADERBOARD']['Enable'] == "true":
     ignore_names = [name.strip() for name in config['LEGLEADERBOARD']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    leg_pokemons_leaderboard(player_sum, config)
+    most_pokemons_leaderboard(player_sum, config['LEGLEADERBOARD'], "legendary")
+
+print("Done!")

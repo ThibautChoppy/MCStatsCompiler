@@ -13,8 +13,13 @@ import ftplib
 
 def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
     df = pd.DataFrame()
-    names = pd.read_csv('../data/names.csv')
     if useftp == "true":
+        ftpserver.cwd("Minecraft")
+        with open("usercache.json", "wb") as file:
+            ftpserver.retrbinary(f"RETR ../data/usercache.json", file.write)
+        names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
+        ftpserver.cwd("../")
+
         # Get files
         filenames = ftpserver.nlst(ftppath)
         ftpserver.cwd(ftppath)
@@ -47,6 +52,8 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 df = df.join(temp_df, how="outer")
         
     else:
+        names_file = open('../data/usercache.json', 'r')
+        names = pd.DataFrame(json.load(names_file))
         for filename in os.listdir('stats'):
             if filename == ".gitignore":
                 continue

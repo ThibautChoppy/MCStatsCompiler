@@ -15,8 +15,8 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
     root_dirnames = []
     if useftp == "true":
         ftpserver.cwd("Minecraft")
-        with open("usercache.json", "wb") as file:
-            ftpserver.retrbinary(f"RETR ../data/usercache.json", file.write)
+        with open("../data/usercache.json", "wb") as file:
+            ftpserver.retrbinary(f"RETR usercache.json", file.write)
         names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
         ftpserver.cwd("../")
 
@@ -112,11 +112,16 @@ def most_pokemons_leaderboard(df, config, type):
     file_path = "output.xlsx"
     wb = openpyxl.load_workbook(file_path)
     
-    sheet_name = "leaderboard2"
+    if type == "standard":
+        sheet_name = "leaderboard2"
+    elif type == "shiny":
+        sheet_name = "leaderboard3"
+    elif type == "legendary":
+        sheet_name = "leaderboard4"
     ws = wb[sheet_name]
     i = 0
-    ExcelRows = int(config['LEADERBOARD']['ExcelRows'])
-    ExcelCols = int(config['LEADERBOARD']['ExcelColumns'])
+    ExcelRows = int(config['ExcelRows'])
+    ExcelCols = int(config['ExcelColumns'])
     for index, row in df[0:ExcelRows*ExcelCols].iterrows():
         ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
         ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
@@ -124,27 +129,7 @@ def most_pokemons_leaderboard(df, config, type):
         i += 1
     now = datetime.datetime.now()
     ws.cell(row=ExcelRows+3, column=2, value="Dernière update le "+now.strftime("%d.%m.%y à %H:%M"))
-    ws.cell(row=ExcelRows+4, column=2, value=config['LEADERBOARD']['Subtitle'])
-    wb.save(file_path)
-
-def shiny_pokemons_leaderboard(df, config):
-    # Load the Excel file
-    file_path = "output.xlsx"
-    wb = openpyxl.load_workbook(file_path)
-    
-    sheet_name = "leaderboard3"
-    ws = wb[sheet_name]
-    i = 0
-    ExcelRows = int(config['SHINYLEADERBOARD']['ExcelRows'])
-    ExcelCols = int(config['SHINYLEADERBOARD']['ExcelColumns'])
-    for index, row in df[0:ExcelRows*ExcelCols].iterrows():
-        ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
-        ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
-        ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
-        i += 1
-    now = datetime.datetime.now()
-    ws.cell(row=ExcelRows+3, column=2, value="Dernière update le "+now.strftime("%d.%m.%y à %H:%M"))
-    ws.cell(row=ExcelRows+4, column=2, value=config['SHINYLEADERBOARD']['Subtitle'])
+    ws.cell(row=ExcelRows+4, column=2, value=config['Subtitle'])
     wb.save(file_path)
 
 
@@ -155,7 +140,7 @@ config.read('cobblemon_config.ini', encoding='utf8')
 # Connect to FTP if activated
 ftp_server = None
 if config['FTP']['UseFTP'] == "true":
-    ftp_server = ftplib.FTP(config['FTP']['Host'], open("username.txt", "r").read(), open("password.txt", "r").read())
+    ftp_server = ftplib.FTP(config['FTP']['Host'], open("../username.txt", "r").read(), open("../password.txt", "r").read())
     ftp_server.encoding = "utf-8"
 
 # Load the data

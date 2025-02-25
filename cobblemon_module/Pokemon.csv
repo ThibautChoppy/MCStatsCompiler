@@ -64,10 +64,10 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 339,Barboach, ,barboach,normal,false
 847,Barraskewda, ,barraskewda,normal,false
 902,Basculegion,Male,basculegion,normal,false
-902,Basculegion,Female,basculegion,UNKNOWN,false
+902,Basculegion,Female,basculegion,f,false
 550,Basculin,Red-Striped Form,basculin,redstriped,false
 550,Basculin,Blue-Striped Form,basculin,bluestriped,false
-550,Basculin,White-Striped Form,basculin,galar,false
+550,Basculin,White-Striped Form,basculin,normal,false
 411,Bastiodon, ,bastiodon,normal,false
 998,Baxcalibur, ,baxcalibur,normal,false
 153,Bayleef, ,bayleef,normal,false
@@ -116,7 +116,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 1,Bulbasaur, ,bulbasaur,normal,false
 427,Buneary, ,buneary,normal,false
 659,Bunnelby, ,bunnelby,normal,false
-412,Burmy,Plant Cloak,burmy,UNKNOWN,false
+412,Burmy,Plant Cloak,burmy,normal,false
 412,Burmy,Sandy Cloak,burmy,UNKNOWN,false
 412,Burmy,Trash Cloak,burmy,UNKNOWN,false
 12,Butterfree, ,butterfree,normal,false
@@ -386,8 +386,8 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 999,Gimmighoul,Chest Form,gimmighoul,normal,false
 999,Gimmighoul,Roaming Form,gimmighoul,roaming,false
 203,Girafarig, ,girafarig,normal,false
-487,Giratina,Altered Forme,giratina,UNKNOWN,true
-487,Giratina,Origin Forme,giratina,normal,true
+487,Giratina,Altered Forme,giratina,normal,true
+487,Giratina,Origin Forme,giratina,origin,true
 471,Glaceon, ,glaceon,normal,false
 362,Glalie, ,glalie,normal,false
 362,Glalie,Mega Glalie,megaglalie,normal,false
@@ -429,7 +429,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 971,Greavard, ,greavard,normal,false
 820,Greedent, ,greedent,normal,false
 658,Greninja, ,greninja,normal,false
-658,Greninja,Ash-Greninja,greninja2,normal,false
+658,Greninja,Ash-Greninja,ashgreninja,normal,false
 88,Grimer, ,grimer,normal,false
 88,Grimer,Alolan Grimer,grimer,alola,false
 861,Grimmsnarl, ,grimmsnarl,normal,false
@@ -522,7 +522,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 588,Karrablast, ,karrablast,normal,false
 798,Kartana, ,kartana,normal,false
 352,Kecleon, ,kecleon,normal,false
-647,Keldeo,Ordinary Form,keldeo,UNKNOWN,true
+647,Keldeo,Ordinary Form,keldeo,normal,true
 647,Keldeo,Resolute Form,keldeo,UNKNOWN,true
 941,Kilowattrel, ,kilowattrel,normal,false
 983,Kingambit, ,kingambit,normal,false
@@ -725,10 +725,10 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 862,Obstagoon, ,obstagoon,normal,false
 224,Octillery, ,octillery,normal,false
 43,Oddish, ,oddish,normal,false
-1017,Ogerpon,Teal Mask,ogerpon,normal,true
-1017,Ogerpon,Wellspring Mask,ogerpon,UNKNOWN,true
-1017,Ogerpon,Hearthflame Mask,ogerpon,UNKNOWN,true
-1017,Ogerpon,Cornerstone Mask,ogerpon,UNKNOWN,true
+1017,Ogerpon,Teal Mask,ogerpon,teal,true
+1017,Ogerpon,Wellspring Mask,ogerpon,wellspring,true
+1017,Ogerpon,Hearthflame Mask,ogerpon,hearthflame,true
+1017,Ogerpon,Cornerstone Mask,ogerpon,cornerstone,true
 916,Oinkologne,Male,oinkologne,normal,false
 916,Oinkologne,Female,oinkologne,female,false
 1014,Okidogi, ,okidogi,normal,false
@@ -1167,7 +1167,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 960,Wiglett, ,wiglett,normal,false
 767,Wimpod, ,wimpod,normal,false
 278,Wingull, ,wingull,normal,false
-746,Wishiwashi,Solo Form,wishiwashi,UNKNOWN,false
+746,Wishiwashi,Solo Form,wishiwashi,normal,false
 746,Wishiwashi,School Form,wishiwashi,UNKNOWN,false
 1001,Wo-Chien, ,wochien,normal,false
 202,Wobbuffet, ,wobbuffet,normal,false
@@ -1175,7 +1175,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 831,Wooloo, ,wooloo,normal,false
 194,Wooper, ,wooper,normal,false
 194,Wooper,Paldean Wooper,wooper,paldea,false
-413,Wormadam,Plant Cloak,wormadam,UNKNOWN,false
+413,Wormadam,Plant Cloak,wormadam,normal,false
 413,Wormadam,Sandy Cloak,wormadam,UNKNOWN,false
 413,Wormadam,Trash Cloak,wormadam,UNKNOWN,false
 961,Wugtrio, ,wugtrio,normal,false

@@ -8,28 +8,41 @@ import datetime
 import ftplib
 import math
 import warnings
+import paramiko
 
 
 def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
     df = pd.DataFrame()
     root_dirnames = []
-    if useftp == "true":
-        ftpserver.cwd("Minecraft")
-        with open("../data/usercache.json", "wb") as file:
-            ftpserver.retrbinary(f"RETR usercache.json", file.write)
-        names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
-        ftpserver.cwd("../")
-
-        # Get directories
-        root_dirnames = ftpserver.nlst(ftppath)
-        ftpserver.cwd(ftppath)
-        
+    if useftp == "ftp" or useftp == "sftp":
+        if useftp == "ftp":
+            ftpserver.cwd("Minecraft")
+            with open("../data/usercache.json", "wb") as file:
+                ftpserver.retrbinary(f"RETR usercache.json", file.write)
+            names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
+            ftpserver.cwd("../")
+            # Get directories
+            root_dirnames = ftpserver.nlst(ftppath)
+            ftpserver.cwd(ftppath)
+        else:
+            ftpserver.chdir("Minecraft")
+            ftpserver.get("usercache.json", "../data/usercache.json")
+            names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
+            ftpserver.chdir("..")
+            # Get directories
+            root_dirnames = ftpserver.listdir(ftppath)
+            ftpserver.chdir(ftppath)
+            
         for dirname in root_dirnames:
             if dirname[-1] == ".":
                 continue
             # Go to the subfolder
-            ftpserver.cwd(dirname.split("/")[-1])
-            filenames = ftpserver.nlst()
+            if useftp == "ftp":
+                ftpserver.cwd(dirname.split("/")[-1])
+                filenames = ftpserver.nlst()
+            else:
+                ftpserver.chdir(dirname.split("/")[-1])
+                filenames = ftpserver.listdir()
             
             for filename in filenames:
                 if filename == "." or filename == "..":
@@ -39,7 +52,10 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 # Download the file to process
                 local_file = f"temp_{filename}"
                 with open(local_file, "wb") as file:
-                    ftpserver.retrbinary(f"RETR {filename}", file.write)
+                    if useftp == "ftp":
+                        ftpserver.retrbinary(f"RETR {filename}", file.write)
+                    else:
+                        ftpserver.get(filename, local_file)
                 
                 with open(local_file, "r") as file:
                     data = json.load(file)['extraData']['cobbledex_discovery']['registers']
@@ -65,7 +81,10 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
                 else:
                     df[temp_name] = np.nan
                 
-            ftpserver.cwd("../")  # Move back to the parent directory
+            if useftp == "ftp":
+                ftpserver.cwd("../")  # Move back to the parent directory
+            else:
+                ftpserver.chdir("..")
     else:
         names_file = open('../data/usercache.json', 'r')
         names = pd.DataFrame(json.load(names_file))
@@ -139,9 +158,13 @@ config.read('cobblemon_config.ini', encoding='utf8')
 
 # Connect to FTP if activated
 ftp_server = None
-if config['FTP']['UseFTP'] == "true":
+if config['FTP']['UseFTP'] == "ftp":
     ftp_server = ftplib.FTP(config['FTP']['Host'], open("../username.txt", "r").read(), open("../password.txt", "r").read())
     ftp_server.encoding = "utf-8"
+if config['FTP']['UseFTP'] == "sftp":
+    transport = paramiko.Transport((config['FTP']['Host'], int(config['FTP']['Port'])))
+    transport.connect(username=open("../username.txt", "r").read().strip(), password=open("../password.txt", "r").read().strip())
+    ftp_server = paramiko.SFTPClient.from_transport(transport)
 
 # Load the data
 if config['GLOBALMATRIX']['UseCSV'] == "false":
@@ -150,8 +173,10 @@ else:
     df = pd.read_csv(config['GLOBALMATRIX']['CSVPath'], index_col=[0,1,2], skipinitialspace=True)
 
 # Close the Connection
-if config['FTP']['UseFTP'] == "true":
+if config['FTP']['UseFTP'] == "ftp":
     ftp_server.quit()
+if config['FTP']['UseFTP'] == "sftp":
+    ftp_server.close()
 
 # Prepare the counting DF
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)

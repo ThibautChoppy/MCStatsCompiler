@@ -28,7 +28,7 @@ jobs:
 
     # Generate timestamps for the tag
     - name: Set TAG variable
-      run: echo "TAG=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+      run: echo "TAG=$(date +%Y%m%d)" >> $GITHUB_ENV
 
     # Build & push of leaderboard-updater image
     - name: Build and push

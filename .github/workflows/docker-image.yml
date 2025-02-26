@@ -28,7 +28,7 @@ jobs:
 
     # Generate timestamps for the tag
     - name: Set TAG variable
-      run: echo "TAG=$(date +%Y%m%d)" >> $GITHUB_ENV
+      run: echo "TAG=$(date +%Y-%m-%d)" >> $GITHUB_ENV
 
     # Build & push of leaderboard-updater image
     - name: Build and push
@@ -37,8 +37,8 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
-          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
+          ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
 
     # Build & push of frontend image
     - name: Build and push

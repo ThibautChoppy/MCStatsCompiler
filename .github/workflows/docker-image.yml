@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
 
 env:
-  LEADERBOARD_IMAGE_NAME: minecraft-leaderboard-updater
-  FRONT_IMAGE_NAME: minecraft-leaderboard-frontend
+  LEADERBOARD_IMAGE_NAME: thibautchopppy/minecraft-leaderboard-updater
+  FRONT_IMAGE_NAME: thibautchopppy/minecraft-leaderboard-frontend
   REGISTRY: ghcr.io
 
 jobs:
@@ -37,8 +37,8 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
-          ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
+          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
 
     # Build & push of frontend image
     - name: Build and push

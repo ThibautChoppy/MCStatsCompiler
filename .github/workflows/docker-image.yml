@@ -7,45 +7,47 @@ on:
     branches: [ "main" ]
 
 env:
-  LEADERBOARD_IMAGE_NAME: thibautchopppy/minecraft-leaderboard-updater
-  FRONT_IMAGE_NAME: thibautchopppy/minecraft-leaderboard-frontend
+  LEADERBOARD_IMAGE_NAME: minecraft-leaderboard-updater
+  FRONT_IMAGE_NAME: minecraft-leaderboard-frontend
   REGISTRY: ghcr.io
+  IMAGE_OWNER: thibautchoppy
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    
-    # Docker registry Login
-    - name: Log in to Docker Hub
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Correct authentication for GitHub Container Registry
+    - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    # Generate timestamps for the tag
+    # Generate the tag based on the current date
     - name: Set TAG variable
       run: echo "TAG=$(date +%Y-%m-%d)" >> $GITHUB_ENV
 
-    # Build & push of leaderboard-updater image
-    - name: Build and push
+    # Build and push the leaderboard-updater image
+    - name: Build and push leaderboard-updater
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
-          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
 
-    # Build & push of frontend image
-    - name: Build and push
+    # Build and push the frontend image
+    - name: Build and push frontend
       uses: docker/build-push-action@v5
       with:
         context: frontend
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:${{ env.TAG }}
-          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONT_IMAGE_NAME }}:${{ env.TAG }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONT_IMAGE_NAME }}:latest

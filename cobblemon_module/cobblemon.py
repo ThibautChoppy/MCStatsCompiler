@@ -25,10 +25,8 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
             root_dirnames = ftpserver.nlst(ftppath)
             ftpserver.cwd(ftppath)
         else:
-            ftpserver.chdir("Minecraft")
             ftpserver.get("usercache.json", "../data/usercache.json")
             names = pd.DataFrame(json.load(open("../data/usercache.json", "r")))
-            ftpserver.chdir("..")
             # Get directories
             root_dirnames = ftpserver.listdir(ftppath)
             ftpserver.chdir(ftppath)

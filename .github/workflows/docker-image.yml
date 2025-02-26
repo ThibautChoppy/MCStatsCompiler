@@ -9,6 +9,7 @@ on:
 env:
   LEADERBOARD_IMAGE_NAME: minecraft-leaderboard-updater
   FRONT_IMAGE_NAME: minecraft-leaderboard-frontend
+  REGISTRY: ghcr.io
 
 jobs:
   build-and-push:
@@ -25,19 +26,21 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     # Build & push of leaderboard-updater image
-    - name: Build and push leaderboard-updater Docker image
-      run: |
-        docker build . --file Dockerfile \
-          --tag ${{ env.LEADERBOARD_IMAGE_NAME }}:$(date +%Y-%m-%d) \
-          --tag ${{ env.LEADERBOARD_IMAGE_NAME }}:latest
-        docker push ${{ env.LEADERBOARD_IMAGE_NAME }}:$(date +%Y-%m-%d)
-        docker push ${{ env.LEADERBOARD_IMAGE_NAME }}:latest
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:$(date +%Y-%m-%d)
+          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
 
     # Build & push of frontend image
-    - name: Build and push frontend Docker image
-      run: |
-        docker build ./frontend --file frontend/Dockerfile \
-          --tag ${{ env.FRONT_IMAGE_NAME }}:$(date +%Y-%m-%d) \
-          --tag ${{ env.FRONT_IMAGE_NAME }}:latest
-        docker push ${{ env.FRONT_IMAGE_NAME }}:$(date +%Y-%m-%d)
-        docker push ${{ env.FRONT_IMAGE_NAME }}:latest
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: frontend
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:$(date +%Y-%m-%d)
+          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:latest

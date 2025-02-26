@@ -11,7 +11,7 @@ import paramiko
 import sqlite3
 
 # Creation or update of the SQLite table
-def init_database(db_path="../scoreboard.db"):
+def init_database(db_path=os.getenv('DB_PATH', '../data/scoreboard.db')):  # Use DB_PATH with default
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -139,10 +139,10 @@ def loadData(csvtoggle, csvpath, useftp, ftpserver, ftppath):
             else:
                 ftpserver.chdir("..")
     else:
-        names_file = open('../data/usercache.json', 'r')
+        names_file = open('../data/usercache.json', 'r')  # Updated path to usercache.json
         names = pd.DataFrame(json.load(names_file))
         i = -1
-        path = 'cobblemonplayerdata'
+        path = '../data/world/cobblemonplayerdata'  # Updated path to cobblemonplayerdata
         for dirpath, dirnames, filenames in os.walk(path):
             if len(dirnames) > 0:
                 root_dirnames = dirnames
@@ -185,11 +185,11 @@ config.read('cobblemon_config.ini', encoding='utf8')
 # Connect to FTP if activated
 ftp_server = None
 if config['FTP']['UseFTP'] == "ftp":
-    ftp_server = ftplib.FTP(config['FTP']['Host'], open("../username.txt", "r").read(), open("../password.txt", "r").read())
+    ftp_server = ftplib.FTP(config['FTP']['Host'], open("./username.txt", "r").read(), open("./password.txt", "r").read())  # Updated path to current directory
     ftp_server.encoding = "utf-8"
 if config['FTP']['UseFTP'] == "sftp":
     transport = paramiko.Transport((config['FTP']['Host'], int(config['FTP']['Port'])))
-    transport.connect(username=open("../username.txt", "r").read().strip(), password=open("../password.txt", "r").read().strip())
+    transport.connect(username=open("./username.txt", "r").read().strip(), password=open("./password.txt", "r").read().strip())  # Updated path to current directory
     ftp_server = paramiko.SFTPClient.from_transport(transport)
 
 # Load the data
@@ -205,7 +205,7 @@ if config['FTP']['UseFTP'] == "sftp":
     ftp_server.close()
 
 # Database initialisation
-conn = init_database("../scoreboard.db")
+conn = init_database()  # Uses DB_PATH or default
 
 # Data preparation
 count_df = df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)

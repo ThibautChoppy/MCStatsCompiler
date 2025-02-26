@@ -6,17 +6,16 @@
 # https://www.curseforge.com/minecraft/modpacks/cobblemon-star-academy/download/6096259
 # https://www.curseforge.com/minecraft/modpacks/cobblemon-star-academy/download/6096498
 #
-# If not already, set CF_API_KEY in a .env file next to this compose file
+# Set CF_API_KEY in a .env file next to this compose file
 # Refer to https://docker-minecraft-server.readthedocs.io/en/latest/types-and-platforms/mod-platforms/auto-curseforge/#api-key
 
 services:
-  mc:
+  cobblemon-server:
     image: itzg/minecraft-server
     environment:
       EULA: "true"
       VERSION: "1.20.1"
       MEMORY: 8G
-      CF_API_KEY: $xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       MODPACK_PLATFORM: AUTO_CURSEFORGE
       CF_MODPACK_ZIP: /downloads/Cobblemon-Star-Academy.zip
       CF_SLUG: cobblemon-star-academy
@@ -29,6 +28,7 @@ services:
       VIEW_DISTANCE: "12"
       ALLOW_FLIGHT: "true"
       DIFFICULTY: "peaceful"
+      CF_API_KEY: $xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     entrypoint:
       - /bin/sh
       - "-c"
@@ -49,30 +49,27 @@ services:
       retries: 5
       start_period: 30s
 
-  leaderboard:
+  leaderboard-updater:
     image: leaderboard
     build:
       context: .
     depends_on:
-      mc:
+      cobblemon-server:
         condition: service_healthy
-    entrypoint:
-      - /bin/sh
-      - "-c"
-      - |
-        cp * /data/world
-        cd /data/world && python cobblemon.py
+    environment:
+      DB_PATH: /data/scoreboard.db
     volumes:
       - data:/data
 
-  frontend:
+  scoreboard-front:
     image: frontend
     build:
       context: frontend
     environment:
       PORT: 8080
+      DB_PATH: /data/scoreboard.db
     depends_on:
-      leaderboard:
+      leaderboard-updater:
         condition: service_completed_successfully
     volumes:
       - data:/data

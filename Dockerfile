@@ -2,17 +2,10 @@
 
 FROM    python:3.9.21-alpine3.21  AS  leaderboard
 
-WORKDIR /root
+COPY    cobblemon_module /cobblemon_module
 
-RUN     apk add --no-cache git
-RUN     git clone https://github.com/Elric02/MCStatsCompiler.git
-
-RUN     mv MCStatsCompiler/cobblemon_module/* .
-
-COPY    cobblemon.py    .
-
-RUN     rm -rf MCStatsCompiler cobblemonplayerdata output.xlsx
+WORKDIR /cobblemon_module
 
 RUN     pip install pandas numpy configparser paramiko
 
-ENTRYPOINT [ "/bin/sh" ]
+ENTRYPOINT [ "python", "cobblemon.py" ]

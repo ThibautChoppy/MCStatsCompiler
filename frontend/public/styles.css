@@ -74,12 +74,12 @@ h1 {
 
 /* Utilisons des classes spécifiques pour les podiums */
 .scoreboard .podium-1 {
-  background: #ffd700 !important; /* Or */
+  background: #ffd700 !important; /* Gold */
   font-weight: bold;
 }
 
 .scoreboard .podium-2 {
-  background: #c0c0c0 !important; /* Argent */
+  background: #c0c0c0 !important; /* Silver */
 }
 
 .scoreboard .podium-3 {
@@ -97,6 +97,6 @@ h1 {
   text-align: center;
   font-size: 12px;
   color: #666;
-  border-top: 1px solid #ccc;
+  /* border-top: 1px solid #ccc; */
   margin-top: 10px;
 }

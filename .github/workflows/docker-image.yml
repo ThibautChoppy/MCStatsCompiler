@@ -37,7 +37,7 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:$TAG
+          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:${{ env.TAG }}
           ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
 
     # Build & push of frontend image
@@ -47,5 +47,5 @@ jobs:
         context: frontend
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:$TAG
+          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:${{ env.TAG }}
           ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:latest

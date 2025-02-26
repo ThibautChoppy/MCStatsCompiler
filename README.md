@@ -18,6 +18,8 @@ Leaderboard-updater
 
 These changes make it easier to deploy on kubernetes.
 
+![Cobblemon example](images/front_scoreboard_example.png)
+
 ## Disclaimer
 
 This was coded for my own use originally, but I've decided to share it in case it can be useful to someone else. It is still work in progress, and requires some knowledge of Python.
@@ -64,7 +66,6 @@ If you intend on using the leaderboard feature of the Cobblemon module, you need
 
 Don't forget to adapt the config file to your changes, especially the number of rows and columns if you have changed them! The subtitles of the table can also be configured there.
 
-![Cobblemon example](front_scoreboard_example.png)
 
 ### (Cobblemon module only) 5b. Prepare Pokemon.csv
 If you intend on using the "Most Legendary Cobblemons" Leaderboard (which is disabled by default), you can edit **Pokemon.csv**. This is not needed, but if you want to change which pokémons are considered as legendary for the leaderboard, it is done there.

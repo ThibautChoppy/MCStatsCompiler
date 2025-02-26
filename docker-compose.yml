@@ -50,7 +50,7 @@ services:
       start_period: 30s
 
   leaderboard-updater:
-    image: leaderboard
+    image: ghcr.io/minecraft-leaderboard-updater:latest
     build:
       context: .
     depends_on:
@@ -62,7 +62,7 @@ services:
       - data:/data
 
   scoreboard-front:
-    image: frontend
+    image: ghcr.io/minecraft-leaderboard-frontend:latest
     build:
       context: frontend
     environment:

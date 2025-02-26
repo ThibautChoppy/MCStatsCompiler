@@ -26,6 +26,10 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    # Generate timestamps for the tag
+    - name: Set TAG variable
+      run: echo "TAG=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+
     # Build & push of leaderboard-updater image
     - name: Build and push
       uses: docker/build-push-action@v5
@@ -33,7 +37,7 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:$(date +%Y-%m-%d)
+          ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:$TAG
           ${{ env.REGISTRY }}/${{ env.LEADERBOARD_IMAGE_NAME }}:latest
 
     # Build & push of frontend image
@@ -43,5 +47,5 @@ jobs:
         context: frontend
         push: true
         tags: |
-          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:$(date +%Y-%m-%d)
+          ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:$TAG
           ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE_NAME }}:latest

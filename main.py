@@ -13,7 +13,41 @@ import ftplib
 import math
 import warnings
 import paramiko
+import sqlite3
 
+
+# Creation or update of the SQLite table
+def init_database(db_path="scoreboard.db"):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Table creation for leaderboards
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS standard_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS shiny_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS legendary_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    conn.commit()
+    return conn
 
 def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
     df = pd.DataFrame()
@@ -294,6 +328,9 @@ if config['INPUT']['Mode'] == "sftp":
     transport = paramiko.Transport((config['INPUT']['Host'], int(config['INPUT']['Port'])))
     transport.connect(username=open("username.txt", "r").read().strip(), password=open("password.txt", "r").read().strip())
     ftp_server = paramiko.SFTPClient.from_transport(transport)
+    
+# Database initialisation
+conn = init_database("scoreboard.db")
 
 # Load the data
 print("LOADING VANILLA DATA")
@@ -360,7 +397,7 @@ if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config, "standard")
+    most_pokemons_leaderboard(player_sum, config, "standard", conn)
 
 # Shiny leaderboard feature
 if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
@@ -370,7 +407,7 @@ if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config, "shiny")
+    most_pokemons_leaderboard(player_sum, config, "shiny", conn)
     
 # Legendary leaderboard feature
 if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
@@ -386,6 +423,9 @@ if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config, "legendary")
+    most_pokemons_leaderboard(player_sum, config, "legendary", conn)
+
+# SQLite close connection
+conn.close()
 
 print("Done!")

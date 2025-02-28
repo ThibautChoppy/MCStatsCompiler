@@ -25,7 +25,7 @@ def list_sftp_directory(sftp, path="."):
     except Exception as e:
         print(f"Error listing directory: {e}")
 
-def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
+def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     df = pd.DataFrame()
     if inputmode == "ftp" or inputmode == "sftp":
         if ftppath == "":
@@ -113,13 +113,20 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             if depth > 0:
                 ftpserver.chdir("../" * depth)
     else:
-        names_file = open('data/usercache/usercache.json', 'r')
+        if inputmode == "manual":
+            names_file = open('data/usercache/usercache.json', 'r')
+        elif inputmode == "local":
+            names_file = open(localpath+'/usercache.json', 'r')
         names = pd.DataFrame(json.load(names_file))
-        for filename in os.listdir('data/stats'):
+        if inputmode == "manual":
+            stats_path = 'data/stats'
+        if inputmode == "local":
+            stats_path = localpath+'/world/stats'
+        for filename in os.listdir(stats_path):
             if filename == ".gitignore":
                 continue
             print("Now processing", filename)
-            file = open('data/stats/' + filename)
+            file = open(stats_path + '/' + filename)
             data = json.load(file)
             # Import the JSON to a Pandas DF
             temp_df = pd.json_normalize(data, meta_prefix=True)
@@ -144,7 +151,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
         df.to_csv(csvpath)
     return df
 
-def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
+def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     df = pd.DataFrame()
     root_dirnames = []
     if inputmode == "ftp" or inputmode == "sftp":
@@ -251,10 +258,16 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             if depth > 0:
                 ftpserver.chdir("../" * depth)
     else:
-        names_file = open('data/usercache/usercache.json', 'r')
+        if inputmode == "manual":
+            names_file = open('data/usercache/usercache.json', 'r')
+        elif inputmode == "local":
+            names_file = open(localpath+'/usercache.json', 'r')
         names = pd.DataFrame(json.load(names_file))
+        if inputmode == "manual":
+            path = 'data/cobblemonplayerdata'
+        if inputmode == "local":
+            path = localpath+'/world/cobblemonplayerdata'
         i = -1
-        path = 'data/cobblemonplayerdata'
         for dirpath, dirnames, filenames in os.walk(path):
             if len(dirnames) > 0:
                 root_dirnames = dirnames
@@ -364,12 +377,12 @@ if config['INPUT']['Mode'] == "sftp":
 if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true":
     # Load the data
     print("LOADING VANILLA DATA")
-    vanilla_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'])
+    vanilla_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
     if config['GLOBALMATRIX']['UseCSV'] == "false":
-        cobblemon_df = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'])
+        cobblemon_df = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
     else:
         cobblemon_df = pd.read_csv(config['GLOBALMATRIX']['CSVPath'], index_col=[0,1,2], skipinitialspace=True)
 

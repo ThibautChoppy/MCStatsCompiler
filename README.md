@@ -70,6 +70,7 @@ You can now run the **main.py** script of the module with your Python installati
 ## Interesting forks
 The following forks of this project might be of interest to you:
 - [floooz/MCStatsCompiler-autoupload](https://github.com/floooz/MCStatsCompiler-autoupload) This fork implements a possible next step for the Cobblemon leaderboards, which is automatically converting the tables from the output.xlsx file to images and uploading them to a GitHub repo. These images can then be used in-game, for example with the projector from the SlideShow mod.
+- [ThibautChoppy/MCStatsCompiler](https://github.com/ThibautChoppy/MCStatsCompiler) This fork runs the script in a Docker container and outputs the leaderboard on a nice-looking web page rather than in an XLSX file
 
 
 ---
@@ -157,3 +158,4 @@ Vous pouvez maintenant exécuter le script **main.py** avec votre installation P
 ## Forks intéressantes
 Les forks de ce projet suivantes peuvent potentiellement vous intéresser :
 - [floooz/MCStatsCompiler-autoupload](https://github.com/floooz/MCStatsCompiler-autoupload) Cette fork implémente une fonctionnalité supplémentaire pour les leaderboards Cobblemon, qui consiste à convertir automatiquement les tableaux du fichier output.xlsx en images et à les uploader sur un repo GitHub. Ces images peuvent ensuite être utilisées en jeu avec le projecteur du mod SlideShow par exemple.
+- [ThibautChoppy/MCStatsCompiler](https://github.com/ThibautChoppy/MCStatsCompiler) Cette fork fait tourner le script dans un container Docker, et affiche le leaderboard sur une magnifique page web plutôt que dans un fichier XLSX.

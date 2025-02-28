@@ -1,6 +1,5 @@
-#TODO: make the script remove all content of the data subfolder before downloading some stuff into it (btw loadVanillaData doesn't keep the stats files and don't put them in the subfolder)
-#TODO: local folder feature
-#TODO: web feature
+#TODO: money leaderboard
+#TODO: web page feature
 
 import json
 import os

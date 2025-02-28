@@ -1,17 +1,16 @@
 import json
 import os
-import pandas as pd # type: ignore
-import numpy as np # type: ignore
+import pandas as pd
+import numpy as np
 import configparser
-import openpyxl # type: ignore
+import openpyxl
 import datetime
 import ftplib
 import math
 import warnings
-import paramiko # type: ignore
-import excel2img # type: ignore
-import requests # type: ignore
-import base64
+import paramiko
+import excel2img
+import requests
 import stat
 
 def list_sftp_directory(sftp, path="."):
@@ -45,14 +44,13 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             # Get directories
             filenames = ftpserver.nlst(ftppath_complete)
             ftpserver.cwd(ftppath_complete)
-        else:
+        elif inputmode == "sftp":
             try:
                 ftpserver.chdir(ftppath)
             except IOError:
                 print(f"Failed to change to directory {ftppath}")
                 list_sftp_directory(ftpserver)
                 raise
-            
             try:
                 ftpserver.get("usercache.json", "data/usercache/usercache.json")
             except IOError:
@@ -85,7 +83,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             with open(local_file, "wb") as file:
                 if inputmode == "ftp":
                     ftpserver.retrbinary(f"RETR {filename}", file.write)
-                else:
+                elif inputmode == "sftp":
                     ftpserver.get(filename, local_file)
             with open(local_file, "r") as file:
                 data = json.load(file)
@@ -111,7 +109,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
         # Go back to root
         if inputmode == "ftp":
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
-        else:
+        elif inputmode == "sftp":
             current_path = ftpserver.getcwd()
             depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
             if depth > 0:
@@ -152,7 +150,7 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
     df = pd.DataFrame()
     root_dirnames = []
     if inputmode == "ftp" or inputmode == "sftp":
-        if ftppath == "root":
+        if ftppath == "":
             ftppath_complete = "world/cobblemonplayerdata"
         else:
             ftppath_complete = ftppath + "/world/cobblemonplayerdata"
@@ -406,9 +404,12 @@ def update_image(api_url, headers, image_data, sha):
     }
     return requests.put(api_url, headers=headers, json=data)
 
+
 # Read config
 config = configparser.ConfigParser()
 config.read('config.ini', encoding='utf8')
+if config['INPUT']['Mode'] not in ['manual', 'local', 'ftp', 'sftp']:
+    raise Exception("Invalid input mode: "+config['INPUT']['Mode']+". Check the config.")
 
 # Connect to FTP if activated
 ftp_server = None
@@ -420,11 +421,10 @@ if config['INPUT']['Mode'] == "sftp":
     transport.connect(username=open("username.txt", "r").read().strip(), password=open("password.txt", "r").read().strip())
     ftp_server = paramiko.SFTPClient.from_transport(transport)
 
-if config['VANILLALEADERBOARD']['Enable'] == "true":
+if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true":
     # Load the data
     print("LOADING VANILLA DATA")
     vanilla_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'])
-
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
@@ -438,6 +438,7 @@ if config['INPUT']['Mode'] == "ftp":
     ftp_server.quit()
 if config['INPUT']['Mode'] == "sftp":
     ftp_server.close()
+
 
 # First leaderboard testing
 if config['VANILLALEADERBOARD']['Enable'] == "true":
@@ -488,92 +489,5 @@ if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     #print(player_sum)
     most_pokemons_leaderboard(player_sum, config, "legendary")
 
-# Export the Excel to images
-export_excel_to_image(config)
-
-if config['GIT']['UseGit'] == "true":
-    GITHUB_USERNAME = config['GIT']['Username']
-    REPO_NAME = config['GIT']['Repo']
-    BRANCH = config['GIT']['Branch']
-    GITHUB_TOKEN = config['GIT']['Token'].strip()
-    
-    # Vérification du token
-    if not GITHUB_TOKEN or GITHUB_TOKEN.startswith('"') or GITHUB_TOKEN.endswith('"'):
-        print("❌ Erreur : Le token GitHub est mal formaté. Assurez-vous qu'il n'y a pas de guillemets dans le fichier de configuration.")
-        exit(1)
-
-    try:
-        if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
-            with open("leaderboard2.png", "rb") as img_file:
-                img_data = base64.b64encode(img_file.read()).decode("utf-8")
-            headers = {
-                "Authorization": f"token {GITHUB_TOKEN}",
-                "Accept": "application/vnd.github.v3+json"
-            }
-            file_name = os.path.basename("leaderboard2.png")
-            api_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{REPO_NAME}/contents/{file_name}"
-            
-            exists, sha = check_file_exists(api_url, headers)
-            if exists:
-                print("📝 Mise à jour de l'image existante...")
-                response = update_image(api_url, headers, img_data, sha)
-            else:
-                print("⬆️ Upload d'une nouvelle image...")
-                response = upload_image(api_url, headers, img_data)
-            if response.status_code in [200, 201]:
-                print(f"✅ Opération réussie : https://raw.githubusercontent.com/{GITHUB_USERNAME}/{REPO_NAME}/refs/heads/{BRANCH}/{file_name}")
-            else:
-                print(f"❌ Erreur ({response.status_code}): {response.json()}")
-    except Exception as e:
-        print("❌ Erreur lors de l'opération.")
-        print(e)
-    try:
-        if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
-            with open("leaderboard3.png", "rb") as img_file:
-                img_data = base64.b64encode(img_file.read()).decode("utf-8")
-            headers = {
-                "Authorization": f"token {GITHUB_TOKEN}",
-                "Accept": "application/vnd.github.v3+json"
-            }
-            file_name = os.path.basename("leaderboard3.png")
-            api_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{REPO_NAME}/contents/{file_name}"
-            exists, sha = check_file_exists(api_url, headers)
-            if exists:
-                print("📝 Mise à jour de l'image existante...")
-                response = update_image(api_url, headers, img_data, sha)
-            else:
-                print("⬆️ Upload d'une nouvelle image...")
-                response = upload_image(api_url, headers, img_data)
-            if response.status_code in [200, 201]:
-                print(f"✅ Opération réussie : https://raw.githubusercontent.com/{GITHUB_USERNAME}/{REPO_NAME}/refs/heads/{BRANCH}/{file_name}")
-            else:
-                print(f"❌ Erreur ({response.status_code}): {response.json()}")
-    except Exception as e:
-        print("❌ Erreur lors de l'opération.")
-        print(e)
-    try:
-        if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
-            with open("leaderboard4.png", "rb") as img_file:
-                img_data = base64.b64encode(img_file.read()).decode("utf-8")
-            headers = {
-                "Authorization": f"token {GITHUB_TOKEN}",
-                "Accept": "application/vnd.github.v3+json"
-            }
-            file_name = os.path.basename("leaderboard4.png")
-            api_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{REPO_NAME}/contents/{file_name}"
-            exists, sha = check_file_exists(api_url, headers)
-            if exists:
-                print("📝 Mise à jour de l'image existante...")
-                response = update_image(api_url, headers, img_data, sha)
-            else:
-                print("⬆️ Upload d'une nouvelle image...")
-                response = upload_image(api_url, headers, img_data)
-            if response.status_code in [200, 201]:
-                print(f"✅ Opération réussie : https://raw.githubusercontent.com/{GITHUB_USERNAME}/{REPO_NAME}/refs/heads/{BRANCH}/{file_name}")            
-            else:
-                print(f"❌ Erreur ({response.status_code}): {response.json()}")
-    except Exception as e:
-        print("❌ Erreur lors de l'opération.")
-        print(e)
 
 print("Done!")

@@ -10,6 +10,42 @@ import math
 import warnings
 import paramiko
 import stat
+import sqlite3
+import shutil
+
+
+# Creation or update of the SQLite table
+def init_database(db_path="scoreboard.db"):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Table creation for leaderboards
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS standard_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS shiny_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS legendary_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    conn.commit()
+    return conn
 
 # List contents of directory and parent directory for debugging
 def list_sftp_directory(sftp, path="."):
@@ -71,13 +107,23 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 list_sftp_directory(ftpserver)
                 raise
 
+        # Start by removing current data files in local
+        for filename in os.listdir("data/stats"):
+            file_path = os.path.join("data/stats", filename)
+            try:
+                if filename == ".gitignore":
+                    continue
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print('Failed to remove %s. Reason: %s' % (file_path, e))
         for filename in filenames:
             if filename[-1] == ".":
                 continue
             filename = filename.split("/")[-1]
             print("Now processing", filename)
             # Download the file to process
-            local_file = "data/stats"+filename
+            local_file = "data/stats/"+filename
             with open(local_file, "wb") as file:
                 if inputmode == "ftp":
                     ftpserver.retrbinary(f"RETR {filename}", file.write)
@@ -85,7 +131,6 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                     ftpserver.get(filename, local_file)
             with open(local_file, "r") as file:
                 data = json.load(file)
-            os.remove(local_file)
             
             # Import the JSON to a Pandas DF
             temp_df = pd.json_normalize(data, meta_prefix=True)
@@ -176,16 +221,13 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 print(f"Failed to change to directory {ftppath}")
                 list_sftp_directory(ftpserver)
                 raise
-            
             try:
                 ftpserver.get("usercache.json", "data/usercache/usercache.json")
             except IOError:
                 print("Failed to get usercache.json")
                 list_sftp_directory(ftpserver)
                 raise
-
             names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
-            
             try:
                 current_path = ftpserver.getcwd()
                 depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
@@ -198,10 +240,23 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 print(f"Failed to access {ftppath_complete}")
                 list_sftp_directory(ftpserver)
                 raise
-            
+        
+        # Start by removing current data files in local
+        for filename in os.listdir("data/cobblemonplayerdata"):
+            file_path = os.path.join("data/cobblemonplayerdata", filename)
+            try:
+                if filename == ".gitignore":
+                    continue
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed to remove %s. Reason: %s' % (file_path, e))
         for dirname in root_dirnames:
             if dirname[-1] == ".":
                 continue
+            subfolder = dirname.split("/")[-1]
             # Go to the subfolder
             if inputmode == "ftp":
                 ftpserver.cwd(dirname.split("/")[-1])
@@ -210,13 +265,15 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 ftpserver.chdir(dirname.split("/")[-1])
                 filenames = ftpserver.listdir()
             
+            # Create the sub-folder on the local level
+            os.mkdir("data/cobblemonplayerdata/"+subfolder)
             for filename in filenames:
                 if filename == "." or filename == "..":
                     continue
                 print("Now processing", filename)
                 
                 # Download the file to process
-                local_file = "data/cobblemonplayerdata/"+filename
+                local_file = "data/cobblemonplayerdata/"+subfolder+"/"+filename
                 with open(local_file, "wb") as file:
                     if inputmode == "ftp":
                         ftpserver.retrbinary(f"RETR {filename}", file.write)
@@ -332,30 +389,49 @@ def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
     output = ranks[[username, 'value', 'non_zero_values']].sort_values(username, ascending=False).rename(columns={username:"rank_"+username, "value":"value_"+username})
     print(output) # add .to_string() for the whole output
 
-def most_pokemons_leaderboard(df, config, type):
-    # Load the Excel file
-    file_path = "output.xlsx"
-    wb = openpyxl.load_workbook(file_path)
+def most_pokemons_leaderboard(df, config, type, conn):
+    if config['COBBLEMONLEADERBOARDS']['SQLiteOutput'] == "true":
+        cursor = conn.cursor()
+        # Table selection by leaderboard type
+        table_map = {
+            "standard": "standard_leaderboard",
+            "shiny": "shiny_leaderboard",
+            "legendary": "legendary_leaderboard"
+        }
+        table_name = table_map[type]
+        # Clear old data
+        cursor.execute(f"DELETE FROM {table_name}")
+        # New data insertion
+        now = datetime.datetime.now().strftime(config['COBBLEMONLEADERBOARDS']['LastUpdated'])
+        for index, row in df.iterrows():
+            cursor.execute(f'''
+                INSERT INTO {table_name} (rank, player_name, score, last_updated)
+                VALUES (?, ?, ?, ?)
+            ''', (int(row['index']), index, int(row[0]), now))
+        conn.commit()
     
-    if type == "standard":
-        sheet_name = "leaderboard2"
-    elif type == "shiny":
-        sheet_name = "leaderboard3"
-    elif type == "legendary":
-        sheet_name = "leaderboard4"
-    ws = wb[sheet_name]
-    i = 0
-    ExcelRows = int(config['COBBLEMONLEADERBOARDS']['ExcelRows'])
-    ExcelCols = int(config['COBBLEMONLEADERBOARDS']['ExcelColumns'])
-    for index, row in df[0:ExcelRows*ExcelCols].iterrows():
-        ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
-        ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
-        ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
-        i += 1
-    now = datetime.datetime.now()
-    ws.cell(row=ExcelRows+3, column=2, value=now.strftime(config['COBBLEMONLEADERBOARDS']['LastUpdated']))
-    ws.cell(row=ExcelRows+4, column=2, value=config['COBBLEMONLEADERBOARDS']['Subtitle'])
-    wb.save(file_path)
+    if config['COBBLEMONLEADERBOARDS']['XLSXOutput'] == "true":
+        # Load the Excel file
+        file_path = "output.xlsx"
+        wb = openpyxl.load_workbook(file_path)
+        tab_map = {
+            "standard": "leaderboard2",
+            "shiny": "leaderboard3",
+            "legendary": "leaderboard4"
+        }
+        ws = wb[tab_map[type]]
+        i = 0
+        ExcelRows = int(config['COBBLEMONLEADERBOARDS']['ExcelRows'])
+        ExcelCols = int(config['COBBLEMONLEADERBOARDS']['ExcelColumns'])
+        for index, row in df[0:ExcelRows*ExcelCols].iterrows():
+            ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
+            ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
+            ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
+            i += 1
+        now = datetime.datetime.now()
+        ws.cell(row=ExcelRows+3, column=2, value=now.strftime(config['COBBLEMONLEADERBOARDS']['LastUpdated']))
+        ws.cell(row=ExcelRows+4, column=2, value=config['COBBLEMONLEADERBOARDS']['Subtitle'])
+        wb.save(file_path)
 
 
 # Read config
@@ -363,6 +439,12 @@ config = configparser.ConfigParser()
 config.read('config.ini', encoding='utf8')
 if config['INPUT']['Mode'] not in ['manual', 'local', 'ftp', 'sftp']:
     raise Exception("Invalid input mode: "+config['INPUT']['Mode']+". Check the config.")
+
+# Database initialisation
+if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:
+    conn = init_database("scoreboard.db")
+else:
+    conn = None
 
 # Connect to FTP if activated
 ftp_server = None
@@ -414,7 +496,7 @@ if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config, "standard")
+    most_pokemons_leaderboard(player_sum, config, "standard", conn)
 
 # Shiny leaderboard feature
 if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
@@ -424,7 +506,7 @@ if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config, "shiny")
+    most_pokemons_leaderboard(player_sum, config, "shiny", conn)
     
 # Legendary leaderboard feature
 if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
@@ -440,7 +522,11 @@ if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
-    most_pokemons_leaderboard(player_sum, config, "legendary")
+    most_pokemons_leaderboard(player_sum, config, "legendary", conn)
 
+
+# SQLite close connection
+if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:
+    conn.close()
 
 print("Done!")

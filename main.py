@@ -346,64 +346,6 @@ def most_pokemons_leaderboard(df, config, type):
     ws.cell(row=ExcelRows+4, column=2, value=config['COBBLEMONLEADERBOARDS']['Subtitle'])
     wb.save(file_path)
 
-def export_excel_to_image(config):
-    """Convert Excel sheets to images"""
-    
-    file_path = "output.xlsx"
-    # Définir la zone à capturer (A1:N15)
-    selection = "A1:N15"
-    
-    try:
-        if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
-        
-            excel2img.export_img(
-                file_path,
-                "leaderboard2.png",
-                "leaderboard2",
-                selection
-            )
-    
-        if config['COBBLEMONLEADERBOARDS']['ShinyEnable']== "true":
-            excel2img.export_img(
-                file_path,
-                "leaderboard3.png",
-                "leaderboard3",
-                selection
-            )
-        
-        if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
-            excel2img.export_img(
-                file_path,
-                "leaderboard4.png",
-                "leaderboard4",
-                selection
-            )
-        
-    except Exception as e:
-        print("Erreur lors de l'exportation des images.")
-        print(e)
-
-def check_file_exists(api_url, headers):
-    response = requests.get(api_url, headers=headers)
-    return response.status_code == 200, response.json().get("sha") if response.status_code == 200 else None
-
-def upload_image(api_url, headers, image_data):
-    data = {
-        "message": "Upload initial de l'image",
-        "content": image_data,
-        "branch": BRANCH
-    }
-    return requests.put(api_url, headers=headers, json=data)
-
-def update_image(api_url, headers, image_data, sha):
-    data = {
-        "message": "Mise à jour de l'image",
-        "content": image_data,
-        "branch": BRANCH,
-        "sha": sha
-    }
-    return requests.put(api_url, headers=headers, json=data)
-
 
 # Read config
 config = configparser.ConfigParser()

@@ -9,12 +9,10 @@ import ftplib
 import math
 import warnings
 import paramiko
-import excel2img
-import requests
 import stat
 
+# List contents of directory and parent directory for debugging
 def list_sftp_directory(sftp, path="."):
-    """List contents of directory and parent directory for debugging"""
     try:
         print(f"\nContents of current directory '{path}':")
         for entry in sftp.listdir_attr(path):
@@ -300,12 +298,12 @@ def getVanillaLeaderboard(df, cat, subcat):
 
 def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
     if username == "null" or not username:
-        print("Erreur: Aucun nom d'utilisateur spécifié dans la configuration")
+        print("Error for Best-and-Worst feature: no username specified in the config")
         return
         
     if username not in df.columns:
-        print(f"Erreur: L'utilisateur '{username}' n'existe pas dans les données")
-        print("Utilisateurs disponibles:", ", ".join(df.columns))
+        print(f"Error for Best-and-Worst feature: User '{username}' does not exist in the provided data")
+        print("Available users:", ", ".join(df.columns))
         return
         
     nb_players = df.shape[1]

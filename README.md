@@ -50,7 +50,7 @@ You have the choice between 4 options to input data files: manual, local, ftp or
 If you use the manual option, drop the files in the appropriate subfolders in the **data** folder (stats, usercache...). If you use other options, follow the instructions in the config. Note: the local mode is still WIP.
 
 ### (Cobblemon module only) 5a. Prepare output.xlsx
-If you intend on using the leaderboard feature of the Cobblemon module, you need to prepare the **output.xlsx** file. Simply adapt the table to your desired number of players (for example, if you expect 20 players, you can for example have a 5x4 table or a 10x2 table). You can also change the title, the colors and other formatting elements. Just make sure to keep 3 Excel columns per leaderboard column, and start it in the cell B3 (see example in the image below).
+If you intend on using the leaderboard feature of the Cobblemon module, you can optionally modify the **output.xlsx** file. Simply adapt the table to your desired number of players (for example, if you expect 20 players, you can for example have a 5x4 table or a 10x2 table). You can also change the title, the colors and other formatting elements. Just make sure to keep 3 Excel columns per leaderboard column, and start it in the cell B3 (see example in the image below).
 
 Don't forget to adapt the config file to your changes, especially the number of rows and columns if you have changed them! The subtitles of the table can also be configured there.
 
@@ -62,10 +62,14 @@ If you intend on using the "Most Legendary Cobblemons" Leaderboard (which is dis
 ### 6. Run the script
 You can now run the **main.py** script of the module with your Python installation.
 
-### Frequent problems
+## Frequent problems
 1. This script uses local paths, so make sure that you are executing the Python script from the folder! If you get errors related json files, it's probably that the script couldn't find it.
 2. The Cobblemon leaderboard feature only produces the XLSX table. To display an image in-game, you still need to convert the table to an image and then upload it somewhere. Feel free to contact me if you need help or tips with that.
 3. This script is not automatic by default; you need to run it manually periodically for it to work. Optionnally, you can setup something on your own machine to run it automatically.
+
+## Interesting forks
+The following forks of this project might be of interest to you:
+- [floooz/MCStatsCompiler-autoupload](https://github.com/floooz/MCStatsCompiler-autoupload) This fork implements a possible next step for the Cobblemon leaderboards, which is automatically converting the tables from the output.xlsx file to images and uploading them to a GitHub repo. These images can then be used in-game, for example with the projector from the SlideShow mod.
 
 
 ---
@@ -133,7 +137,7 @@ Si vous utilisez l'option manuelle, déposez les fichiers dans les sous-dossiers
 
 ### (Module Cobblemon uniquement) 5a. Préparer output.xlsx
 
-Si vous souhaitez utiliser la fonctionnalité de classement du module Cobblemon, vous devez préparer le fichier **output.xlsx**. Adaptez simplement le tableau à votre nombre de joueurs prévu (par exemple, si vous attendez 20 joueurs, vous pouvez opter pour un tableau de 5x4 ou 10x2). Vous pouvez également modifier le titre, les couleurs et les éléments de mise en forme. Assurez-vous simplement de garder trois colonnes Excel par classement et de commencer dans la cellule **B3**.
+Si vous souhaitez utiliser la fonctionnalité de classement du module Cobblemon, vous pouvez optionnellement modifier le fichier **output.xlsx**. Adaptez simplement le tableau à votre nombre de joueurs prévu (par exemple, si vous attendez 20 joueurs, vous pouvez opter pour un tableau de 5x4 ou 10x2). Vous pouvez également modifier le titre, les couleurs et les éléments de mise en forme. Assurez-vous simplement de garder trois colonnes Excel par classement et de commencer dans la cellule **B3**.
 
 N'oubliez pas d'adapter le fichier de configuration à vos modifications, notamment le nombre de lignes et de colonnes. Les sous-titres du tableau peuvent également être configurés ici.
 
@@ -145,7 +149,11 @@ Si vous utilisez le classement "Cobblemons Légendaires" (désactivé par défau
 
 Vous pouvez maintenant exécuter le script **main.py** avec votre installation Python.
 
-### Problèmes fréquents
+## Problèmes fréquents
 1. Ce script utilise des chemins locaux, assurez-vous donc de l'exécuter depuis le bon dossier ! Si vous obtenez des erreurs liées aux fichiers JSON, il est probable que le script ne les trouve pas.
 2. La fonction de leaderboard Cobblemon ne produit que le tableau XLSX. Pour afficher une image dans le jeu, vous devez toujours convertir le tableau en image, puis le télécharger quelque part. N'hésitez pas à me contacter si vous avez besoin d'aide ou de conseils à ce sujet.
 3. Ce script n'est pas automatique par défaut ; vous devez l'exécuter manuellement périodiquement pour qu'il fonctionne. Optionnellement, vous pouvez configurer quelque chose sur votre propre machine pour l'exécuter automatiquement.
+
+## Forks intéressantes
+Les forks de ce projet suivantes peuvent potentiellement vous intéresser :
+- [floooz/MCStatsCompiler-autoupload](https://github.com/floooz/MCStatsCompiler-autoupload) Cette fork implémente une fonctionnalité supplémentaire pour les leaderboards Cobblemon, qui consiste à convertir automatiquement les tableaux du fichier output.xlsx en images et à les uploader sur un repo GitHub. Ces images peuvent ensuite être utilisées en jeu avec le projecteur du mod SlideShow par exemple.

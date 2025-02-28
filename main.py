@@ -14,7 +14,21 @@ import math
 import warnings
 import paramiko
 import sqlite3
+import stat
 
+# List contents of directory and parent directory for debugging
+def list_sftp_directory(sftp, path="."):
+    try:
+        print(f"\nContents of current directory '{path}':")
+        for entry in sftp.listdir_attr(path):
+            print(f"{entry.filename:30} {'<DIR>' if stat.S_ISDIR(entry.st_mode) else '<FILE>'}")
+        
+        parent = os.path.dirname(path) if path != "/" else "/"
+        print(f"\nContents of parent directory '{parent}':")
+        for entry in sftp.listdir_attr(parent):
+            print(f"{entry.filename:30} {'<DIR>' if stat.S_ISDIR(entry.st_mode) else '<FILE>'}")
+    except Exception as e:
+        print(f"Error listing directory: {e}")
 
 # Creation or update of the SQLite table
 def init_database(db_path="scoreboard.db"):
@@ -49,7 +63,7 @@ def init_database(db_path="scoreboard.db"):
     conn.commit()
     return conn
 
-def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
+def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     df = pd.DataFrame()
     if inputmode == "ftp" or inputmode == "sftp":
         if ftppath == "":
@@ -66,15 +80,34 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             # Get directories
             filenames = ftpserver.nlst(ftppath_complete)
             ftpserver.cwd(ftppath_complete)
-        else:
-            ftpserver.chdir(ftppath)
-            ftpserver.get("usercache.json", "data/usercache/usercache.json")
+        elif inputmode == "sftp":
+            try:
+                ftpserver.chdir(ftppath)
+            except IOError:
+                print(f"Failed to change to directory {ftppath}")
+                list_sftp_directory(ftpserver)
+                raise
+            try:
+                ftpserver.get("usercache.json", "data/usercache/usercache.json")
+            except IOError:
+                print("Failed to get usercache.json")
+                list_sftp_directory(ftpserver)
+                raise
+
             names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
-            # Go back to root
-            ftpserver.chdir("../" * (len(ftpserver.pwd().split("/"))-1))
-            # Get directories
-            filenames = ftpserver.listdir(ftppath_complete)
-            ftpserver.chdir(ftppath_complete)
+            
+            try:
+                current_path = ftpserver.getcwd()
+                depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
+                if depth > 0:
+                    ftpserver.chdir("../" * depth)  # Return to root
+                print(f"Trying to access {ftppath_complete}")
+                filenames = ftpserver.listdir(ftppath_complete)
+                ftpserver.chdir(ftppath_complete)
+            except IOError:
+                print(f"Failed to access {ftppath_complete}")
+                list_sftp_directory(ftpserver)
+                raise
 
         for filename in filenames:
             if filename[-1] == ".":
@@ -86,7 +119,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             with open(local_file, "wb") as file:
                 if inputmode == "ftp":
                     ftpserver.retrbinary(f"RETR {filename}", file.write)
-                else:
+                elif inputmode == "sftp":
                     ftpserver.get(filename, local_file)
             with open(local_file, "r") as file:
                 data = json.load(file)
@@ -112,16 +145,26 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
         # Go back to root
         if inputmode == "ftp":
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
-        else:
-            ftpserver.chdir("../" * (len(ftpserver.pwd().split("/"))-1))
+        elif inputmode == "sftp":
+            current_path = ftpserver.getcwd()
+            depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
+            if depth > 0:
+                ftpserver.chdir("../" * depth)
     else:
-        names_file = open('data/usercache/usercache.json', 'r')
+        if inputmode == "manual":
+            names_file = open('data/usercache/usercache.json', 'r')
+        elif inputmode == "local":
+            names_file = open(localpath+'/usercache.json', 'r')
         names = pd.DataFrame(json.load(names_file))
-        for filename in os.listdir('data/stats'):
+        if inputmode == "manual":
+            stats_path = 'data/stats'
+        if inputmode == "local":
+            stats_path = localpath+'/world/stats'
+        for filename in os.listdir(stats_path):
             if filename == ".gitignore":
                 continue
             print("Now processing", filename)
-            file = open('data/stats/' + filename)
+            file = open(stats_path + '/' + filename)
             data = json.load(file)
             # Import the JSON to a Pandas DF
             temp_df = pd.json_normalize(data, meta_prefix=True)
@@ -146,7 +189,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
         df.to_csv(csvpath)
     return df
 
-def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
+def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     df = pd.DataFrame()
     root_dirnames = []
     if inputmode == "ftp" or inputmode == "sftp":
@@ -165,14 +208,34 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
             root_dirnames = ftpserver.nlst(ftppath_complete)
             ftpserver.cwd(ftppath_complete)
         else:
-            ftpserver.chdir(ftppath)
-            ftpserver.get("usercache.json", "data/usercache/usercache.json")
+            try:
+                ftpserver.chdir(ftppath)
+            except IOError:
+                print(f"Failed to change to directory {ftppath}")
+                list_sftp_directory(ftpserver)
+                raise
+            
+            try:
+                ftpserver.get("usercache.json", "data/usercache/usercache.json")
+            except IOError:
+                print("Failed to get usercache.json")
+                list_sftp_directory(ftpserver)
+                raise
+
             names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
-            # Go back to root
-            ftpserver.chdir("../" * (len(ftpserver.pwd().split("/"))-1))
-            # Get directories
-            root_dirnames = ftpserver.listdir(ftppath_complete)
-            ftpserver.chdir(ftppath_complete)
+            
+            try:
+                current_path = ftpserver.getcwd()
+                depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
+                if depth > 0:
+                    ftpserver.chdir("../" * depth)  # Return to root
+                print(f"Trying to access {ftppath_complete}")
+                root_dirnames = ftpserver.listdir(ftppath_complete)
+                ftpserver.chdir(ftppath_complete)
+            except IOError:
+                print(f"Failed to access {ftppath_complete}")
+                list_sftp_directory(ftpserver)
+                raise
             
         for dirname in root_dirnames:
             if dirname[-1] == ".":
@@ -228,12 +291,21 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath):
         if inputmode == "ftp":
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
         else:
-            ftpserver.chdir("../" * (len(ftpserver.pwd().split("/"))-1))
+            current_path = ftpserver.getcwd()
+            depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
+            if depth > 0:
+                ftpserver.chdir("../" * depth)
     else:
-        names_file = open('data/usercache/usercache.json', 'r')
+        if inputmode == "manual":
+            names_file = open('data/usercache/usercache.json', 'r')
+        elif inputmode == "local":
+            names_file = open(localpath+'/usercache.json', 'r')
         names = pd.DataFrame(json.load(names_file))
+        if inputmode == "manual":
+            path = 'data/cobblemonplayerdata'
+        if inputmode == "local":
+            path = localpath+'/world/cobblemonplayerdata'
         i = -1
-        path = 'data/cobblemonplayerdata'
         for dirpath, dirnames, filenames in os.walk(path):
             if len(dirnames) > 0:
                 root_dirnames = dirnames
@@ -276,6 +348,15 @@ def getVanillaLeaderboard(df, cat, subcat):
     print(row)
 
 def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
+    if username == "null" or not username:
+        print("Error for Best-and-Worst feature: no username specified in the config")
+        return
+        
+    if username not in df.columns:
+        print(f"Error for Best-and-Worst feature: User '{username}' does not exist in the provided data")
+        print("Available users:", ", ".join(df.columns))
+        return
+        
     nb_players = df.shape[1]
     if cleaning == "true":
         before_value = df.shape[0]
@@ -318,6 +399,8 @@ def most_pokemons_leaderboard(df, config, type):
 # Read config
 config = configparser.ConfigParser()
 config.read('config.ini', encoding='utf8')
+if config['INPUT']['Mode'] not in ['manual', 'local', 'ftp', 'sftp']:
+    raise Exception("Invalid input mode: "+config['INPUT']['Mode']+". Check the config.")
 
 # Connect to FTP if activated
 ftp_server = None
@@ -332,20 +415,24 @@ if config['INPUT']['Mode'] == "sftp":
 # Database initialisation
 conn = init_database("scoreboard.db")
 
-# Load the data
-print("LOADING VANILLA DATA")
-vanilla_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'])
-print("LOADING COBBLEMON DATA")
-if config['GLOBALMATRIX']['UseCSV'] == "false":
-    cobblemon_df = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'])
-else:
-    cobblemon_df = pd.read_csv(config['GLOBALMATRIX']['CSVPath'], index_col=[0,1,2], skipinitialspace=True)
+if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true":
+    # Load the data
+    print("LOADING VANILLA DATA")
+    vanilla_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
+
+if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
+    print("LOADING COBBLEMON DATA")
+    if config['GLOBALMATRIX']['UseCSV'] == "false":
+        cobblemon_df = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
+    else:
+        cobblemon_df = pd.read_csv(config['GLOBALMATRIX']['CSVPath'], index_col=[0,1,2], skipinitialspace=True)
 
 # Close the Connection
 if config['INPUT']['Mode'] == "ftp":
     ftp_server.quit()
 if config['INPUT']['Mode'] == "sftp":
     ftp_server.close()
+
 
 # First leaderboard testing
 if config['VANILLALEADERBOARD']['Enable'] == "true":
@@ -427,5 +514,6 @@ if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
 
 # SQLite close connection
 conn.close()
+
 
 print("Done!")

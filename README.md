@@ -40,6 +40,8 @@ Read it, and if needed, edit it based on what you want.
 ### 3. Update usercache.json
 All of your data files should be named [uuid].json, where [uuid] is the Minecraft UUID of the player. In order to work with the usernames of the players instead, you need to update the file **data/usercache.json**. Simply download it from your server (it should be at the root folder) and put it there. If you use the FTP setting (see below), the script will go and file the file for you (no need to update it manually then).
 
+Note: if your server is in offline-mode (cracked mode), you might have players with same name but different UUIDs, which will crash the script. You need to fix that manually in the **usercache.json**.
+
 ### 4. Input files 
 You have the choice between 4 options to input data files: manual, local, ftp or sftp. In the config, manual is by default.
 - manual: upload manually all the files in the relevant folders in the data folder of the project

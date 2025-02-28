@@ -47,7 +47,7 @@ You have the choice between 4 options to input data files: manual, local, ftp or
 - ftp: use an ftp connection to a distant server
 - sftp: use an sftp connection to a distant server
 
-If you use the manual option, drop the files in the appropriate subfolders in the **data** folder (stats, usercache...). If you use other options, follow the instructions in the config. Note: the local mode is still WIP.
+If you use the manual option, drop the files in the appropriate subfolders in the **data** folder (stats, usercache...). If you use other options, follow the instructions in the config.
 
 ### (Cobblemon module only) 5a. Prepare output.xlsx
 If you intend on using the leaderboard feature of the Cobblemon module, you can optionally modify the **output.xlsx** file. Simply adapt the table to your desired number of players (for example, if you expect 20 players, you can for example have a 5x4 table or a 10x2 table). You can also change the title, the colors and other formatting elements. Just make sure to keep 3 Excel columns per leaderboard column, and start it in the cell B3 (see example in the image below).
@@ -134,7 +134,7 @@ Vous avez le choix entre quatre méthodes pour importer les fichiers de données
 - **ftp** : utilisez une connexion FTP vers un serveur distant.
 - **sftp** : utilisez une connexion SFTP vers un serveur distant.
 
-Si vous utilisez l'option manuelle, déposez les fichiers dans les sous-dossiers appropriés du dossier **data** (stats, usercache...). Pour les autres options, suivez les instructions dans la configuration. Remarque : le mode local est encore en cours de développement.
+Si vous utilisez l'option manuelle, déposez les fichiers dans les sous-dossiers appropriés du dossier **data** (stats, usercache...). Pour les autres options, suivez les instructions dans la configuration.
 
 ### (Module Cobblemon uniquement) 5a. Préparer output.xlsx
 

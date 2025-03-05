@@ -16,6 +16,7 @@ import sqlite3
 import stat
 import sqlite3
 import shutil
+import nbt
 
 
 # Creation or update of the SQLite table
@@ -42,6 +43,14 @@ def init_database(db_path="scoreboard.db"):
     ''')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS legendary_leaderboard (
+            rank INTEGER,
+            player_name TEXT,
+            score INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS money_leaderboard (
             rank INTEGER,
             player_name TEXT,
             score INTEGER,
@@ -65,46 +74,19 @@ def list_sftp_directory(sftp, path="."):
     except Exception as e:
         print(f"Error listing directory: {e}")
 
-# Creation or update of the SQLite table
-def init_database(db_path="scoreboard.db"):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
 
-    # Table creation for leaderboards
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS standard_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS shiny_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS legendary_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    conn.commit()
-    return conn
-
-def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
+def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath, csvtogglemoney, csvpathmoney):
     df = pd.DataFrame()
+    money = {}
+    
     if inputmode == "ftp" or inputmode == "sftp":
+        
         if ftppath == "":
-            ftppath_complete = "world/stats"
+            ftppath_complete_stats = "world/stats"
+            ftppath_complete_playerdata = "world/playerdata"
         else:
-            ftppath_complete = ftppath + "/world/stats"
+            ftppath_complete_stats = ftppath + "/world/stats"
+            ftppath_complete_playerdata = ftppath + "/world/playerdata"
         if inputmode == "ftp":
             ftpserver.cwd(ftppath)
             with open("data/usercache/usercache.json", "wb") as file:
@@ -113,8 +95,8 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             # Go back to root
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
             # Get directories
-            filenames = ftpserver.nlst(ftppath_complete)
-            ftpserver.cwd(ftppath_complete)
+            filenames = ftpserver.nlst(ftppath_complete_stats)
+            ftpserver.cwd(ftppath_complete_stats)
         elif inputmode == "sftp":
             try:
                 ftpserver.chdir(ftppath)
@@ -128,19 +110,17 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 print("Failed to get usercache.json")
                 list_sftp_directory(ftpserver)
                 raise
-
             names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
-            
             try:
                 current_path = ftpserver.getcwd()
                 depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
                 if depth > 0:
                     ftpserver.chdir("../" * depth)  # Return to root
-                print(f"Trying to access {ftppath_complete}")
-                filenames = ftpserver.listdir(ftppath_complete)
-                ftpserver.chdir(ftppath_complete)
+                print(f"Trying to access {ftppath_complete_stats}")
+                filenames = ftpserver.listdir(ftppath_complete_stats)
+                ftpserver.chdir(ftppath_complete_stats)
             except IOError:
-                print(f"Failed to access {ftppath_complete}")
+                print(f"Failed to access {ftppath_complete_stats}")
                 list_sftp_directory(ftpserver)
                 raise
 
@@ -154,6 +134,17 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                     os.unlink(file_path)
             except Exception as e:
                 print('Failed to remove %s. Reason: %s' % (file_path, e))
+        for filename in os.listdir("data/playerdata"):
+            file_path = os.path.join("data/playerdata", filename)
+            try:
+                if filename == ".gitignore":
+                    continue
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print('Failed to remove %s. Reason: %s' % (file_path, e))
+
+        # Process the stats data
         for filename in filenames:
             if filename[-1] == ".":
                 continue
@@ -190,6 +181,39 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             else:
                 df = df.join(temp_df, how="outer")
         
+        # Go back to previous folder, now use playerdata
+        if inputmode == "ftp":
+            # Go back to root
+            ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
+            # Get directories
+            filenames = ftpserver.nlst(ftppath_complete_playerdata)
+            ftpserver.cwd(ftppath_complete_playerdata)
+        elif inputmode == "sftp":
+            # Go back to root
+            current_path = ftpserver.getcwd()
+            depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
+            if depth > 0:
+                ftpserver.chdir("../" * depth)  # Return to root
+            # Get directories
+            filenames = ftpserver.listdir(ftppath_complete_playerdata)
+            ftpserver.chdir(ftppath_complete_playerdata)
+        for filename in filenames:
+            filename = filename.split("/")[-1]
+            if filename[-1] == "." or filename[-4:] == "_old" or filename == "player_roles":
+                continue
+            print("Now processing", filename)
+            # Download the file to process
+            local_file = "data/playerdata/"+filename
+            with open(local_file, "wb") as file:
+                if inputmode == "ftp":
+                    ftpserver.retrbinary(f"RETR {filename}", file.write)
+                elif inputmode == "sftp":
+                    ftpserver.get(filename, local_file)
+            temp_name = names.loc[names['uuid'] == filename[:-4]]['name']
+            nbtfile = nbt.nbt.NBTFile(local_file,'r')
+            money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
+        money = pd.DataFrame(money, index=["money"]).transpose()
+        
         # Go back to root
         if inputmode == "ftp":
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
@@ -205,9 +229,13 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             names_file = open(localpath+'/usercache.json', 'r')
         names = pd.DataFrame(json.load(names_file))
         if inputmode == "manual":
+            playerdata_path = 'data/playerdata'
             stats_path = 'data/stats'
         if inputmode == "local":
+            playerdata_path = localpath+'/world/playerdata'
             stats_path = localpath+'/world/stats'
+            
+        # Stats
         for filename in os.listdir(stats_path):
             if filename == ".gitignore":
                 continue
@@ -234,12 +262,27 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 df = temp_df
             else:
                 df = df.join(temp_df, how="outer")
+            
+        # Userdata
+        for filename in os.listdir(playerdata_path):
+            filename = filename.split("/")[-1]
+            if filename[-1] == "." or filename[-4:] == "_old" or filename == "player_roles":
+                continue
+            print("Now processing", filename)
+            # Download the file to process
+            file = open(playerdata_path + '/' + filename)
+            temp_name = names.loc[names['uuid'] == filename[:-4]]['name']
+            nbtfile = nbt.nbt.NBTFile(file,'r')
+            money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
+        money = pd.DataFrame(money, index=["money"]).transpose()
     
     # Replace missing values by 0 (the stat has simply not been initialized because the associated action was not performed)
     df = df.fillna(0)
     if csvtoggle == "true":
         df.to_csv(csvpath)
-    return df
+    if csvtogglemoney == "true":
+        money.to_csv(csvpathmoney)
+    return df, money
 
 def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     df = pd.DataFrame()
@@ -441,7 +484,8 @@ def most_pokemons_leaderboard(df, config, type, conn):
         table_map = {
             "standard": "standard_leaderboard",
             "shiny": "shiny_leaderboard",
-            "legendary": "legendary_leaderboard"
+            "legendary": "legendary_leaderboard",
+            "money": "money_leaderboard"
         }
         table_name = table_map[type]
         # Clear old data
@@ -452,7 +496,7 @@ def most_pokemons_leaderboard(df, config, type, conn):
             cursor.execute(f'''
                 INSERT INTO {table_name} (rank, player_name, score, last_updated)
                 VALUES (?, ?, ?, ?)
-            ''', (int(row['index']), index, int(row[0]), now))
+            ''', (int(row['index']), index, int(row.iloc[0]), now))
         conn.commit()
     
     if config['COBBLEMONLEADERBOARDS']['XLSXOutput'] == "true":
@@ -462,7 +506,8 @@ def most_pokemons_leaderboard(df, config, type, conn):
         tab_map = {
             "standard": "leaderboard2",
             "shiny": "leaderboard3",
-            "legendary": "leaderboard4"
+            "legendary": "leaderboard4",
+            "money": "leaderboard5"
         }
         ws = wb[tab_map[type]]
         i = 0
@@ -471,7 +516,7 @@ def most_pokemons_leaderboard(df, config, type, conn):
         for index, row in df[0:ExcelRows*ExcelCols].iterrows():
             ws.cell(row=(i%ExcelRows)+3, column=2+math.floor(i/ExcelRows)*3, value=str(i+1)+".")
             ws.cell(row=(i%ExcelRows)+3, column=3+math.floor(i/ExcelRows)*3, value=index)
-            ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row[0])
+            ws.cell(row=(i%ExcelRows)+3, column=4+math.floor(i/ExcelRows)*3, value=row.iloc[0])
             i += 1
         now = datetime.datetime.now()
         ws.cell(row=ExcelRows+3, column=2, value=now.strftime(config['COBBLEMONLEADERBOARDS']['LastUpdated']))
@@ -504,10 +549,10 @@ if config['INPUT']['Mode'] == "sftp":
 # Database initialisation
 conn = init_database("scoreboard.db")
 
-if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true":
+if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true" or config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     # Load the data
     print("LOADING VANILLA DATA")
-    vanilla_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
+    vanilla_df, money_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
@@ -565,6 +610,8 @@ for pokemon in caught_list:
 print("Caught pokemons not found in the db:", len(unknown_list))
 print(unknown_list)
 
+leaderboards = {}
+
 # Total leaderboard feature
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
     player_sum = pd.DataFrame((count_df == "CAUGHT").sum().sort_values())
@@ -573,6 +620,7 @@ if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
+    leaderboards["cobblemon_total"] = player_sum
     most_pokemons_leaderboard(player_sum, config, "standard", conn)
 
 # Shiny leaderboard feature
@@ -583,8 +631,9 @@ if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
+    leaderboards["cobblemon_shiny"] = player_sum
     most_pokemons_leaderboard(player_sum, config, "shiny", conn)
-    
+
 # Legendary leaderboard feature
 if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     legs = legendary_list['Cobblemon'].tolist()
@@ -599,7 +648,19 @@ if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
+    leaderboards["cobblemon_legendary"] = player_sum
     most_pokemons_leaderboard(player_sum, config, "legendary", conn)
+
+# Money feature
+if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
+    player_sum = money_df.sort_values('money')
+    player_sum['index'] = range(len(player_sum), 0, -1)
+    player_sum = player_sum.iloc[::-1]
+    ignore_names = [name.strip() for name in config['COBBLEMONLEADERBOARDS']['IgnoreNames'].split(",") if name.strip()]
+    player_sum.drop(ignore_names, inplace=True, errors='ignore')
+    #print(player_sum)
+    leaderboards["cobblemon_money"] = player_sum
+    most_pokemons_leaderboard(player_sum, config, "money",  conn)
 
 
 # SQLite close connection

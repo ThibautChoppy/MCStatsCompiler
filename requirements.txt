@@ -4,3 +4,4 @@ openpyxl
 paramiko
 requests
 configparser
+nbt

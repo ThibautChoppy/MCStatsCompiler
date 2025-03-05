@@ -5,4 +5,4 @@ paramiko
 requests
 configparser
 nbt
-tkinter
+pillow

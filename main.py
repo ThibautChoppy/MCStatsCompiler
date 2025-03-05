@@ -14,8 +14,7 @@ import stat
 import sqlite3
 import shutil
 import nbt
-import tkinter as tk
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageFont
 import requests
 from io import BytesIO
 
@@ -522,6 +521,28 @@ def most_pokemons_leaderboard(df, config, type, conn):
         ws.cell(row=ExcelRows+4, column=2, value=config['COBBLEMONLEADERBOARDS']['Subtitle'])
         wb.save(file_path)
 
+def top_image(df, config, title):
+    # Create an image for the leaderboard
+    width, height = 400, 300
+    img = Image.new("RGB", (width, height), "#2C3E50")
+    draw = ImageDraw.Draw(img)
+    # Title
+    font = ImageFont.load_default()
+    draw.text((100, 10), title, fill="gold", font=font)
+    y_offset = 50
+    
+    rank = 1
+    nbplayers = int(config['TOPIMAGE']['NbPlayers'])
+    for _, player in df.iloc[:nbplayers].iterrows():
+        response = requests.get("https://mc-heads.net/avatar/"+player.name)
+        avatar = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.LANCZOS)
+        img.paste(avatar, (20, y_offset))
+        draw.text((100, y_offset + 20), f"#{rank} {player.name} - Score: {player.iloc[0]}", fill="white", font=font)
+        y_offset += 80
+        rank += 1
+    # Save the final visualization
+    img.save(config['TOPIMAGE']['ImagePath'])
+
 
 # Read config
 config = configparser.ConfigParser()
@@ -661,6 +682,9 @@ if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     leaderboards["cobblemon_money"] = player_sum
     most_pokemons_leaderboard(player_sum, config, "money",  conn)
 
+
+# Minecraft-style top feature
+top_image(leaderboards["cobblemon_total"], config, "Le plus de Cobblemons attrapés")
 
 # SQLite close connection
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:

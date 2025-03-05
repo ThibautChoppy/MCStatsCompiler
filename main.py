@@ -1,6 +1,3 @@
-#TODO: money leaderboard
-#TODO: web page feature
-
 import json
 import os
 import pandas as pd
@@ -17,6 +14,10 @@ import stat
 import sqlite3
 import shutil
 import nbt
+import tkinter as tk
+from PIL import Image, ImageTk
+import requests
+from io import BytesIO
 
 
 # Creation or update of the SQLite table
@@ -266,13 +267,11 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
         # Userdata
         for filename in os.listdir(playerdata_path):
             filename = filename.split("/")[-1]
-            if filename[-1] == "." or filename[-4:] == "_old" or filename == "player_roles":
+            if filename[-1] == "." or filename[-4:] == "_old" or filename == "player_roles" or filename == ".gitignore":
                 continue
             print("Now processing", filename)
-            # Download the file to process
-            file = open(playerdata_path + '/' + filename)
             temp_name = names.loc[names['uuid'] == filename[:-4]]['name']
-            nbtfile = nbt.nbt.NBTFile(file,'r')
+            nbtfile = nbt.nbt.NBTFile(playerdata_path + '/' + filename,'r')
             money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
         money = pd.DataFrame(money, index=["money"]).transpose()
     

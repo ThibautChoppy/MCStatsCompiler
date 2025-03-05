@@ -5,3 +5,4 @@ paramiko
 requests
 configparser
 nbt
+tkinter

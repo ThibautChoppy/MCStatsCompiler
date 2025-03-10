@@ -65,9 +65,9 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 847,Barraskewda, ,barraskewda,normal,false
 902,Basculegion,Male,basculegion,normal,false
 902,Basculegion,Female,basculegion,f,false
-550,Basculin,Red+AC0-Striped Form,basculin,normal,false
-550,Basculin,Blue+AC0-Striped Form,basculin,bluestriped,false
-550,Basculin,White+AC0-Striped Form,basculin,whitestriped,false
+550,Basculin,Red-Striped Form,basculin,normal,false
+550,Basculin,Blue-Striped Form,basculin,bluestriped,false
+550,Basculin,White-Striped Form,basculin,whitestriped,false
 411,Bastiodon, ,bastiodon,normal,false
 998,Baxcalibur, ,baxcalibur,normal,false
 153,Bayleef, ,bayleef,normal,false
@@ -161,8 +161,8 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 652,Chesnaught, ,chesnaught,normal,false
 650,Chespin, ,chespin,normal,false
 833,Chewtle, ,chewtle,normal,false
-1004,Chi+AC0-Yu, ,chiyu,normal,true
-1002,Chien+AC0-Pao, ,chienpao,normal,true
+1004,Chi-Yu, ,chiyu,normal,true
+1002,Chien-Pao, ,chienpao,normal,true
 152,Chikorita, ,chikorita,normal,false
 390,Chimchar, ,chimchar,normal,false
 358,Chimecho, ,chimecho,normal,false
@@ -277,8 +277,8 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 621,Druddigon, ,druddigon,normal,false
 832,Dubwool, ,dubwool,normal,false
 580,Ducklett, ,ducklett,normal,false
-982,Dudunsparce,Two+AC0-Segment Form,dudunsparce,normal,false
-982,Dudunsparce,Three+AC0-Segment Form,dudunsparce,UNKNOWN,false
+982,Dudunsparce,Two-Segment Form,dudunsparce,normal,false
+982,Dudunsparce,Three-Segment Form,dudunsparce,UNKNOWN,false
 51,Dugtrio, ,dugtrio,normal,false
 51,Dugtrio,Alolan Dugtrio,dugtrio,alola,false
 206,Dunsparce, ,dunsparce,normal,false
@@ -332,12 +332,12 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 160,Feraligatr, ,feraligatr,normal,false
 597,Ferroseed, ,ferroseed,normal,false
 598,Ferrothorn, ,ferrothorn,normal,false
-1016,Fezandipiti, ,fezandipiti,normal,false
+1016,Fezandipiti, ,fezandipiti,normal,true
 926,Fidough, ,fidough,normal,false
 963,Finizen, ,finizen,normal,false
 456,Finneon, ,finneon,normal,false
 180,Flaaffy, ,flaaffy,normal,false
-669,Flab+//3//Q-b+//3//Q-, ,flabebe,normal,false
+669,Flabébé, ,flabebe,normal,false
 973,Flamigo, ,flamigo,normal,false
 841,Flapple, ,flapple,normal,false
 136,Flareon, ,flareon,normal,false
@@ -429,7 +429,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 971,Greavard, ,greavard,normal,false
 820,Greedent, ,greedent,normal,false
 658,Greninja, ,greninja,normal,false
-658,Greninja,Ash+AC0-Greninja,ashgreninja,normal,false
+658,Greninja,Ash-Greninja,ashgreninja,normal,false
 88,Grimer, ,grimer,normal,false
 88,Grimer,Alolan Grimer,grimer,alola,false
 861,Grimmsnarl, ,grimmsnarl,normal,false
@@ -448,7 +448,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 799,Guzzlord, ,guzzlord,normal,false
 130,Gyarados, ,gyarados,normal,false
 130,Gyarados,Mega Gyarados,megagyarados,normal,false
-783,Hakamo+AC0-o, ,hakamoo,normal,false
+783,Hakamo-o, ,hakamoo,normal,false
 440,Happiny, ,happiny,normal,false
 297,Hariyama, ,hariyama,normal,false
 856,Hatenna, ,hatenna,normal,false
@@ -469,7 +469,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 107,Hitmonchan, ,hitmonchan,normal,false
 106,Hitmonlee, ,hitmonlee,normal,false
 237,Hitmontop, ,hitmontop,normal,false
-250,Ho+AC0-oh, ,hooh,normal,true
+250,Ho-oh, ,hooh,normal,true
 430,Honchkrow, ,honchkrow,normal,false
 679,Honedge, ,honedge,normal,false
 720,Hoopa,Hoopa Confined,hoopa,normal,true
@@ -505,7 +505,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 990,Iron Treads, ,irontreads,normal,false
 1006,Iron Valiant, ,ironvaliant,normal,false
 2,Ivysaur, ,ivysaur,normal,false
-782,Jangmo+AC0-o, ,jangmoo,normal,false
+782,Jangmo-o, ,jangmoo,normal,false
 593,Jellicent, ,jellicent,normal,false
 39,Jigglypuff, ,jigglypuff,normal,false
 385,Jirachi, ,jirachi,normal,true
@@ -537,7 +537,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 601,Klinklang, ,klinklang,normal,false
 109,Koffing, ,koffing,normal,false
 775,Komala, ,komala,normal,false
-784,Kommo+AC0-o, ,kommoo,normal,false
+784,Kommo-o, ,kommoo,normal,false
 1007,Koraidon, ,koraidon,normal,true
 98,Krabby, ,krabby,normal,false
 401,Kricketot, ,kricketot,normal,false
@@ -691,7 +691,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 89,Muk, ,muk,normal,false
 89,Muk,Alolan Muk,muk,alola,false
 446,Munchlax, ,munchlax,normal,false
-1015,Munkidori, ,munkidori,normal,false
+1015,Munkidori, ,munkidori,normal,true
 517,Munna, ,munna,normal,false
 198,Murkrow, ,murkrow,normal,false
 518,Musharna, ,musharna,normal,false
@@ -731,14 +731,14 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 1017,Ogerpon,Cornerstone Mask,ogerpon,cornerstone,true
 916,Oinkologne,Male,oinkologne,normal,false
 916,Oinkologne,Female,oinkologne,female,false
-1014,Okidogi, ,okidogi,normal,false
+1014,Okidogi, ,okidogi,normal,true
 138,Omanyte, ,omanyte,normal,false
 139,Omastar, ,omastar,normal,false
 95,Onix, ,onix,normal,false
 765,Oranguru, ,oranguru,normal,false
 826,Orbeetle, ,orbeetle,normal,false
 741,Oricorio,Baile Style,oricorio,normal,false
-741,Oricorio,Pom+AC0-Pom Style,oricorio,UNKNOWN,false
+741,Oricorio,Pom-Pom Style,oricorio,UNKNOWN,false
 741,Oricorio,Pa'u Style,oricorio,UNKNOWN,false
 741,Oricorio,Sensu Style,oricorio,UNKNOWN,false
 968,Orthworm, ,orthworm,normal,false
@@ -803,7 +803,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 261,Poochyena, ,poochyena,normal,false
 728,Popplio, ,popplio,normal,false
 137,Porygon, ,porygon,normal,false
-474,Porygon+AC0-Z, ,porygonz,normal,false
+474,Porygon-Z, ,porygonz,normal,false
 233,Porygon2, ,porygon2,normal,false
 730,Primarina, ,primarina,normal,false
 57,Primeape, ,primeape,normal,false
@@ -1066,7 +1066,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 642,Thundurus,Therian Forme,thundurus,UNKNOWN,true
 811,Thwackey, ,thwackey,normal,false
 532,Timburr, ,timburr,normal,false
-1003,Ting+AC0-Lu, ,tinglu,normal,false
+1003,Ting-Lu, ,tinglu,normal,true
 957,Tinkatink, ,tinkatink,normal,false
 959,Tinkaton, ,tinkaton,normal,false
 958,Tinkatuff, ,tinkatuff,normal,false
@@ -1169,7 +1169,7 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 278,Wingull, ,wingull,normal,false
 746,Wishiwashi,Solo Form,wishiwashi,normal,false
 746,Wishiwashi,School Form,wishiwashi,UNKNOWN,false
-1001,Wo+AC0-Chien, ,wochien,normal,false
+1001,Wo-Chien, ,wochien,normal,true
 202,Wobbuffet, ,wobbuffet,normal,false
 527,Woobat, ,woobat,normal,false
 831,Wooloo, ,wooloo,normal,false
@@ -1212,5 +1212,5 @@ ID,Name,Form,Cobblemon,Cobblemonform,Legendary
 41,Zubat, ,zubat,normal,false
 634,Zweilous, ,zweilous,normal,false
 718,Zygarde,Complete Forme,zygarde,UNKNOWN,true
-718,Zygarde10+ACU- Forme, ,zygarde,UNKNOWN,true
-718,Zygarde50+ACU- Forme, ,zygarde,normal,true
+718,Zygarde10% Forme, ,zygarde,UNKNOWN,true
+718,Zygarde50% Forme, ,zygarde,normal,true

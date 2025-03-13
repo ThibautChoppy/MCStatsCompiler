@@ -285,8 +285,12 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
     return df, money
 
 def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
+    # Contains cobbledex_discovery/registers
     df = pd.DataFrame()
+    # Contains PvP and PvW victory counts
     df2 = pd.DataFrame()
+    # Contains captureCount/defeats
+    df3 = pd.DataFrame()
     root_dirnames = []
     if inputmode == "ftp" or inputmode == "sftp":
         if ftppath == "":
@@ -373,10 +377,11 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                     json_file = json.load(file)
                     data = json_file['extraData']['cobbledex_discovery']['registers']
                     advancementData = json_file['advancementData']
+                    captureCountData = json_file['extraData']['captureCount']['defeats']
                 
                 temp_df = pd.json_normalize(data, meta_prefix=True)
-                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
                 temp_df = temp_df.transpose().iloc[:]
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
                 if temp_name.empty:
                     print("No username found for UUID", filename[:-5], " in usercache.json, using UUID for this player instead.")
                     temp_name = filename[:-5]
@@ -395,6 +400,22 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                     
                 df2.loc["totalPvPBattleVictoryCount", temp_name] = advancementData['totalPvPBattleVictoryCount']
                 df2.loc["totalPvWBattleVictoryCount", temp_name] = advancementData['totalPvWBattleVictoryCount']
+                
+                temp_df = pd.json_normalize(captureCountData, meta_prefix=True)
+                temp_df = temp_df.transpose().iloc[:]
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+                if temp_name.empty:
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
+                if not temp_df.empty:
+                    if df3.empty:
+                        df3 = temp_df
+                    else:
+                        df3 = df3.join(temp_df, how="outer")
+                else:
+                    df3[temp_name] = np.nan
                 
             if inputmode == "ftp":
                 ftpserver.cwd("../")  # Move back to the parent directory
@@ -430,18 +451,19 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 json_file = json.load(file)
                 data = json_file['extraData']['cobbledex_discovery']['registers']
                 advancementData = json_file['advancementData']
+                captureCountData = json_file['extraData']['captureCount']['defeats']
                 # Import the JSON to a Pandas DF
                 temp_df = pd.json_normalize(data, meta_prefix=True)
-                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
                 temp_df = temp_df.transpose().iloc[:]
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
                 if temp_name.empty:
                     print("No username found for UUID", filename[:-5], " in usercache.json, using UUID for this player instead.")
                     temp_name = filename[:-5]
                     temp_df = temp_df.rename({0: temp_name}, axis=1)
                 else:
                     temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
-                # Split the index (stats.blabla.blabla) into 3 indexes (stats, blabla, blabla)
                 if not temp_df.empty:
+                    # Split the index (stats.blabla.blabla) into 3 indexes (stats, blabla, blabla)
                     temp_df.index = temp_df.index.str.split('.', expand=True)
                     if df.empty:
                         df = temp_df
@@ -449,14 +471,33 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                         df = df.join(temp_df, how="outer")
                 else:
                     df[temp_name] = np.nan
+                    
                 df2.loc["totalPvPBattleVictoryCount", temp_name] = advancementData['totalPvPBattleVictoryCount']
                 df2.loc["totalPvWBattleVictoryCount", temp_name] = advancementData['totalPvWBattleVictoryCount']
+                
+                temp_df = pd.json_normalize(captureCountData, meta_prefix=True)
+                temp_df = temp_df.transpose().iloc[:]
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+                if temp_name.empty:
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
+                if not temp_df.empty:
+                    if df3.empty:
+                        df3 = temp_df
+                    else:
+                        df3 = df3.join(temp_df, how="outer")
+                else:
+                    df3[temp_name] = np.nan
+                
             i += 1
     # Replace missing values by 0 (the stat has simply not been initialized because the associated action was not performed)
     df = df.fillna(0)
+    df3 = df3.fillna(0)
     if csvtoggle == "true":
         df.to_csv(csvpath)
-    return df, df2
+    return df, df2, df3
 
 
 def getVanillaLeaderboard(df, cat, subcat, verbose=True):
@@ -498,6 +539,12 @@ def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
 def getCobblemonBattleLeaderboard(df, type):
     row = df.loc[type].sort_values().iloc[::-1]
     df = pd.DataFrame(row).rename(columns={type: 0})
+    return df
+
+def getCobblemonCaptureCountLeaderboard(df):
+    df = df.reset_index().melt(id_vars='index')
+    df.columns = ['cobblemon', 'player', 'value']
+    df = df.sort_values(by='value', ascending=False).set_index('player')
     return df
     
 def most_pokemons_leaderboard(df, config, type, conn):
@@ -546,7 +593,7 @@ def most_pokemons_leaderboard(df, config, type, conn):
         ws.cell(row=ExcelRows+4, column=2, value=config['COBBLEMONLEADERBOARDS']['Subtitle'])
         wb.save(file_path)
 
-def top_image(df_list, config, titles):
+def top_image(df_list, config, titles, special_list):
     ldb_width = int(config["TOPIMAGE"]["Width"])
     ldb_height = int(config["TOPIMAGE"]["Height"])
     base_y_offset = 50
@@ -575,9 +622,12 @@ def top_image(df_list, config, titles):
             avatar = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.LANCZOS)
             img.paste(avatar, (100 + x_margin, y_offset + y_margin))
             font = ImageFont.truetype("fonts/minecraft.ttf", 24)
-            score = player.iloc[0]
-            if not isinstance(score, str):
-                score = int(score)
+            if special_list[i] == "singletype":
+                score = str(int(player.loc['value'])) + ' (' + player.loc['cobblemon'] + ')'
+            else:
+                score = player.iloc[0]
+                if not isinstance(score, str):
+                    score = int(score)
             username = leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player.name]
             if username.empty:
                 username = player.name
@@ -623,10 +673,7 @@ if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['E
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
-    if config['GLOBALMATRIX']['UseCSV'] == "false":
-        cobblemon_df, cobblemon_df2 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
-    else:
-        cobblemon_df = pd.read_csv(config['GLOBALMATRIX']['CSVPath'], index_col=[0,1,2], skipinitialspace=True)
+    cobblemon_df, cobblemon_df2, cobblemon_df3 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
 
 # Close the Connection
 if config['INPUT']['Mode'] == "ftp":
@@ -731,6 +778,7 @@ if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     most_pokemons_leaderboard(player_sum, config, "money",  conn)
 
 leaderboards_to_show = []
+special_list = []
 for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
     leaderboard_type = leaderboard_type.strip()
     if leaderboard_type.split('/')[0] == "vanilla":
@@ -754,9 +802,16 @@ for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
             leaderboards_to_show.append(leaderboards["cobblemon_legendary"])
         elif leaderboard_type.split('/')[1] == "money":
             leaderboards_to_show.append(leaderboards["cobblemon_money"])
+        elif leaderboard_type.split('/')[1] == "singletype":
+            leaderboards_to_show.append(getCobblemonCaptureCountLeaderboard(cobblemon_df3))
+    # Some leaderboards require a special layout on the image
+    if leaderboard_type.split('/')[0] == "cobblemon" and leaderboard_type.split('/')[1] == "singletype":
+        special_list.append("singletype")
+    else:
+        special_list.append(None)
 
 # Minecraft-style top feature
-top_image(leaderboards_to_show, config, config['TOPIMAGE']['Titles'].split(","))
+top_image(leaderboards_to_show, config, config['TOPIMAGE']['Titles'].split(","), special_list)
 
 # SQLite close connection
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:

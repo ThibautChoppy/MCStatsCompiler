@@ -1,3 +1,5 @@
+#TODO: manage correctly importdatas etc based on enabled features
+
 import json
 import os
 import pandas as pd
@@ -457,11 +459,14 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
     return df, df2
 
 
-def getVanillaLeaderboard(df, cat, subcat):
+def getVanillaLeaderboard(df, cat, subcat, verbose=True, case=None):
     row = df.loc['stats'].loc[cat].loc[subcat].sort_values().iloc[::-1]
-    print("Leaderboard of", cat, subcat, ":")
     df = pd.DataFrame(row).rename(columns={subcat: 0})
-    print(df)
+    if case == "playtime":
+        df[0] = df[0].apply(lambda x: f"{(int(x) // (20*60*60))}h {((int(x)) // (20*60))%60}min")
+    if verbose:
+        print("Leaderboard of", cat, subcat, ":")
+        print(df)
     return df
 
 def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
@@ -564,7 +569,10 @@ def top_image(df_list, config, titles):
             avatar = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.LANCZOS)
             img.paste(avatar, (100 + x_margin, y_offset + y_margin))
             font = ImageFont.truetype("fonts/minecraft.ttf", 24)
-            draw.text((170 + x_margin, y_offset + 30 + y_margin), f"#{rank} {player.name} - {int(player.iloc[0])}", fill="white", font=font)
+            score = player.iloc[0]
+            if not isinstance(score, str):
+                score = int(score)
+            draw.text((170 + x_margin, y_offset + 30 + y_margin), f"#{rank} {player.name} - {score}", fill="white", font=font)
             y_offset += 80
             rank += 1
             
@@ -711,11 +719,33 @@ if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     leaderboards["cobblemon_money"] = player_sum
     most_pokemons_leaderboard(player_sum, config, "money",  conn)
 
+leaderboards_to_show = []
+for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
+    leaderboard_type = leaderboard_type.strip()
+    if leaderboard_type.split('/')[0] == "vanilla":
+        if leaderboard_type.split('/')[1] == "minecraft:custom":
+            if leaderboard_type.split('/')[2] == "minecraft:play_time":
+                leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False, "playtime"))
+            else:
+                leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
+        else:
+            leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
+    elif leaderboard_type.split('/')[0] == "cobblemon":
+        if leaderboard_type.split('/')[1] == "pvp":
+            leaderboards_to_show.append(getCobblemonBattleLeaderboard(cobblemon_df2, "totalPvPBattleVictoryCount"))
+        elif leaderboard_type.split('/')[1] == "pvw":
+            leaderboards_to_show.append(getCobblemonBattleLeaderboard(cobblemon_df2, "totalPvWBattleVictoryCount"))
+        elif leaderboard_type.split('/')[1] == "total":
+            leaderboards_to_show.append(leaderboards["cobblemon_total"])
+        elif leaderboard_type.split('/')[1] == "shiny":
+            leaderboards_to_show.append(leaderboards["cobblemon_shiny"])
+        elif leaderboard_type.split('/')[1] == "legendary":
+            leaderboards_to_show.append(leaderboards["cobblemon_legendary"])
+        elif leaderboard_type.split('/')[1] == "money":
+            leaderboards_to_show.append(leaderboards["cobblemon_money"])
 
-leaderboards["vanilla1"] = (getVanillaLeaderboard(vanilla_df, config['VANILLALEADERBOARD']['Category'], config['VANILLALEADERBOARD']['Subcategory']))
-leaderboards["cobblemonbattle"] = (getCobblemonBattleLeaderboard(cobblemon_df2, "totalPvPBattleVictoryCount"))
 # Minecraft-style top feature
-top_image([leaderboards["vanilla1"], leaderboards["cobblemonbattle"], leaderboards["cobblemon_legendary"], leaderboards["cobblemon_money"]], config, ["Titre 1", "Titre 2", "Titre 3", "Titre 4", "Titre 5", "Titre 6", "Titre 7", "Titre 8", "Titre 9"])
+top_image(leaderboards_to_show, config, config['TOPIMAGE']['Titles'].split(","))
 
 # SQLite close connection
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:

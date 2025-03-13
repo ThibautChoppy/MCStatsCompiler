@@ -553,6 +553,9 @@ def top_image(df_list, config, titles):
     img = Image.new("RGB", (width, height), "#2C3E50")
     draw = ImageDraw.Draw(img)
     
+    # Import usernames to show instead of the Minecraft username
+    leaderboard_usernames_df = pd.read_csv('leaderboard_usernames.csv')
+    
     for i, df in enumerate(df_list):
         x_margin = i%ldb_width * base_width
         y_margin = math.floor(i/ldb_height) * base_height
@@ -572,7 +575,12 @@ def top_image(df_list, config, titles):
             score = player.iloc[0]
             if not isinstance(score, str):
                 score = int(score)
-            draw.text((170 + x_margin, y_offset + 30 + y_margin), f"#{rank} {player.name} - {score}", fill="white", font=font)
+            username = leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player.name]
+            if username.empty:
+                username = player.name
+            else:
+                username = username['real'].iloc[0]
+            draw.text((170 + x_margin, y_offset + 30 + y_margin), f"#{rank} {username} - {score}", fill="white", font=font)
             y_offset += 80
             rank += 1
             

@@ -80,15 +80,18 @@ def list_sftp_directory(sftp, path="."):
 def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath, csvtogglemoney, csvpathmoney):
     df = pd.DataFrame()
     money = {}
+    advancements = pd.DataFrame()
     
     if inputmode == "ftp" or inputmode == "sftp":
         
         if ftppath == "":
             ftppath_complete_stats = "world/stats"
             ftppath_complete_playerdata = "world/playerdata"
+            ftppath_complete_advancements = "world/advancements"
         else:
             ftppath_complete_stats = ftppath + "/world/stats"
             ftppath_complete_playerdata = ftppath + "/world/playerdata"
+            ftppath_complete_advancements = ftppath + "/world/advancements"
         if inputmode == "ftp":
             ftpserver.cwd(ftppath)
             with open("data/usercache/usercache.json", "wb") as file:
@@ -127,24 +130,16 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 raise
 
         # Start by removing current data files in local
-        for filename in os.listdir("data/stats"):
-            file_path = os.path.join("data/stats", filename)
-            try:
-                if filename == ".gitignore":
-                    continue
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-            except Exception as e:
-                print('Failed to remove %s. Reason: %s' % (file_path, e))
-        for filename in os.listdir("data/playerdata"):
-            file_path = os.path.join("data/playerdata", filename)
-            try:
-                if filename == ".gitignore":
-                    continue
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-            except Exception as e:
-                print('Failed to remove %s. Reason: %s' % (file_path, e))
+        for folder in ["data/stats", "data/playerdata", "data/advancements"]:
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                try:
+                    if filename == ".gitignore":
+                        continue
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    print('Failed to remove %s. Reason: %s' % (file_path, e))
 
         # Process the stats data
         for filename in filenames:
@@ -216,6 +211,52 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
         money = pd.DataFrame(money, index=["money"]).transpose()
         
+        # Go back to previous folder, now use advancements
+        if inputmode == "ftp":
+            # Go back to root
+            ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
+            # Get directories
+            filenames = ftpserver.nlst(ftppath_complete_advancements)
+            ftpserver.cwd(ftppath_complete_advancements)
+        elif inputmode == "sftp":
+            # Go back to root
+            current_path = ftpserver.getcwd()
+            depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
+            if depth > 0:
+                ftpserver.chdir("../" * depth)  # Return to root
+            # Get directories
+            filenames = ftpserver.listdir(ftppath_complete_advancements)
+            ftpserver.chdir(ftppath_complete_advancements)
+        for filename in filenames:
+            filename = filename.split("/")[-1]
+            if filename[-1] == ".":
+                continue
+            print("Now processing", filename)
+            # Download the file to process
+            local_file = "data/advancements/"+filename
+            with open(local_file, "wb") as file:
+                if inputmode == "ftp":
+                    ftpserver.retrbinary(f"RETR {filename}", file.write)
+                elif inputmode == "sftp":
+                    ftpserver.get(filename, local_file)
+            with open(local_file, "r") as file:
+                data = json.load(file)
+            temp_df = pd.json_normalize(data, meta_prefix=True)
+            temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+            if temp_name.empty:
+                print("No username found for UUID", filename[:-5], " in usercache.json, using UUID for this player instead.")
+                temp_name = filename[:-5]
+                temp_df = temp_df.transpose().iloc[1:].rename({0: temp_name}, axis=1)
+            temp_df = temp_df.transpose().iloc[1:].rename({0: temp_name.iloc[0]}, axis=1)
+            # Split the index (stats.blabla.blabla) into 3 indexes (stats, blabla, blabla)
+            temp_df.index = temp_df.index.str.split('.', expand=True)
+            #print(temp_df)
+            #temp_df.to_csv('temp.csv')
+            if advancements.empty:
+                advancements = temp_df
+            else:
+                advancements = advancements.join(temp_df, how="outer")
+        
         # Go back to root
         if inputmode == "ftp":
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
@@ -233,9 +274,10 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
         if inputmode == "manual":
             playerdata_path = 'data/playerdata'
             stats_path = 'data/stats'
+            advancements_path = 'data/advancements'
         if inputmode == "local":
             playerdata_path = localpath+'/world/playerdata'
-            stats_path = localpath+'/world/stats'
+            advancements_path = localpath+'/world/advancements'
             
         # Stats
         for filename in os.listdir(stats_path):
@@ -275,14 +317,41 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             nbtfile = nbt.nbt.NBTFile(playerdata_path + '/' + filename,'r')
             money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
         money = pd.DataFrame(money, index=["money"]).transpose()
+            
+        # Advancements
+        for filename in os.listdir(advancements_path):
+            if filename == ".gitignore":
+                continue
+            print("Now processing", filename)
+            file = open(advancements_path + '/' + filename)
+            data = json.load(file)
+            # Import the JSON to a Pandas DF
+            temp_df = pd.json_normalize(data, meta_prefix=True)
+            temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+            if temp_name.empty:
+                print("No username found for UUID", filename[:-5], " in usercache.json, using UUID for this player instead.")
+                temp_name = filename[:-5]
+                temp_df = temp_df.transpose().iloc[1:].rename({0: temp_name}, axis=1)
+            temp_df = temp_df.transpose().iloc[1:].rename({0: temp_name.iloc[0]}, axis=1)
+            # Split the index (stats.blabla.blabla) into 3 indexes (stats, blabla, blabla)
+            temp_df.index = temp_df.index.str.split('.', expand=True)
+            # Drop rows where it's not a real advancement, it's only an unlocked recipe (i.e. takes the shape of xxx:recipes/yyy)
+            temp_df = temp_df[~temp_df.index.get_level_values(0).str.split(":", n=1).str[1].str.startswith("recipes")]
+            #print(temp_df)
+            #temp_df.to_csv('temp.csv')
+            if advancements.empty:
+                advancements = temp_df
+            else:
+                advancements = advancements.join(temp_df, how="outer")
     
     # Replace missing values by 0 (the stat has simply not been initialized because the associated action was not performed)
     df = df.fillna(0)
+    advancements = advancements.fillna(0)
     if csvtoggle == "true":
         df.to_csv(csvpath)
     if csvtogglemoney == "true":
         money.to_csv(csvpathmoney)
-    return df, money
+    return df, money, advancements
 
 def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     # Contains cobbledex_discovery/registers
@@ -536,6 +605,12 @@ def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
     output = ranks[[username, 'value', 'non_zero_values']].sort_values(username, ascending=False).rename(columns={username:"rank_"+username, "value":"value_"+username})
     print(output) # add .to_string() for the whole output
 
+def getAdvancementsLeaderboard(df):
+    count_df = pd.DataFrame((df == True).sum().sort_values())
+    count_df['index'] = range(len(count_df), 0, -1)
+    count_df = count_df.iloc[::-1]
+    return count_df
+
 def getCobblemonBattleLeaderboard(df, type):
     row = df.loc[type].sort_values().iloc[::-1]
     df = pd.DataFrame(row).rename(columns={type: 0})
@@ -673,7 +748,7 @@ conn = init_database("scoreboard.db")
 if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true" or config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     # Load the data
     print("LOADING VANILLA DATA")
-    vanilla_df, money_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
+    vanilla_df, money_df, advancements_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
@@ -791,6 +866,8 @@ for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
                 leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
             else:
                 leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
+        elif leaderboard_type.split('/')[1] == "advancements":
+            leaderboards_to_show.append(getAdvancementsLeaderboard(advancements_df))
         else:
             leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
     elif leaderboard_type.split('/')[0] == "cobblemon":

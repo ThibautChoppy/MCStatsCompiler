@@ -80,6 +80,7 @@ def list_sftp_directory(sftp, path="."):
 def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath, csvtogglemoney, csvpathmoney):
     df = pd.DataFrame()
     money = {}
+    waystones = {}
     advancements = pd.DataFrame()
     
     if inputmode == "ftp" or inputmode == "sftp":
@@ -209,7 +210,9 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             temp_name = names.loc[names['uuid'] == filename[:-4]]['name']
             nbtfile = nbt.nbt.NBTFile(local_file,'r')
             money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
+            waystones[temp_name.iloc[0]] = len(nbtfile['BalmData']['WaystonesData']['Waystones'])
         money = pd.DataFrame(money, index=["money"]).transpose()
+        waystones = pd.DataFrame(waystones, index=["waystones"]).transpose()
         
         # Go back to previous folder, now use advancements
         if inputmode == "ftp":
@@ -316,7 +319,9 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             temp_name = names.loc[names['uuid'] == filename[:-4]]['name']
             nbtfile = nbt.nbt.NBTFile(playerdata_path + '/' + filename,'r')
             money[temp_name.iloc[0]] = math.floor(nbtfile['cardinal_components']['numismatic-overhaul:currency']['Value'].value/10000)
+            waystones[temp_name.iloc[0]] = len(nbtfile['BalmData']['WaystonesData']['Waystones'])
         money = pd.DataFrame(money, index=["money"]).transpose()
+        waystones = pd.DataFrame(waystones, index=["waystones"]).transpose()
             
         # Advancements
         for filename in os.listdir(advancements_path):
@@ -351,7 +356,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
         df.to_csv(csvpath)
     if csvtogglemoney == "true":
         money.to_csv(csvpathmoney)
-    return df, money, advancements
+    return df, money, waystones, advancements
 
 def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath):
     # Contains cobbledex_discovery/registers
@@ -611,8 +616,8 @@ def getAdvancementsLeaderboard(df):
     count_df = count_df.iloc[::-1]
     return count_df
 
-def getCobblemonBattleLeaderboard(df, type):
-    row = df.loc[type].sort_values().iloc[::-1]
+def getStandardLeaderboard(df):
+    row = df.sort_values().iloc[::-1]
     df = pd.DataFrame(row).rename(columns={type: 0})
     return df
 
@@ -748,7 +753,7 @@ conn = init_database("scoreboard.db")
 if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true" or config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     # Load the data
     print("LOADING VANILLA DATA")
-    vanilla_df, money_df, advancements_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
+    vanilla_df, money_df, waystones_df, advancements_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
@@ -872,9 +877,9 @@ for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
             leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
     elif leaderboard_type.split('/')[0] == "cobblemon":
         if leaderboard_type.split('/')[1] == "pvp":
-            leaderboards_to_show.append(getCobblemonBattleLeaderboard(cobblemon_df2, "totalPvPBattleVictoryCount"))
+            leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]))
         elif leaderboard_type.split('/')[1] == "pvw":
-            leaderboards_to_show.append(getCobblemonBattleLeaderboard(cobblemon_df2, "totalPvWBattleVictoryCount"))
+            leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvWBattleVictoryCount"]))
         elif leaderboard_type.split('/')[1] == "total":
             leaderboards_to_show.append(leaderboards["cobblemon_total"])
         elif leaderboard_type.split('/')[1] == "shiny":
@@ -885,6 +890,8 @@ for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
             leaderboards_to_show.append(leaderboards["cobblemon_money"])
         elif leaderboard_type.split('/')[1] == "singletype":
             leaderboards_to_show.append(getCobblemonCaptureCountLeaderboard(cobblemon_df3))
+        elif leaderboard_type.split('/')[1] == "waystones":
+            leaderboards_to_show.append(getStandardLeaderboard(waystones_df['waystones']))
     # Some leaderboards require a special layout on the image
     if leaderboard_type.split('/')[0] == "cobblemon" and leaderboard_type.split('/')[1] == "singletype":
         special_list.append("singletype")

@@ -604,7 +604,7 @@ def top_image(df_list, config, titles, special_list):
     draw = ImageDraw.Draw(img)
     
     # Import usernames to show instead of the Minecraft username
-    leaderboard_usernames_df = pd.read_csv('leaderboard_usernames.csv')
+    leaderboard_usernames_df = pd.read_csv('staticdata/leaderboard_usernames.csv')
     
     for i, df in enumerate(df_list):
         x_margin = i%ldb_width * base_width
@@ -622,17 +622,21 @@ def top_image(df_list, config, titles, special_list):
             avatar = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.LANCZOS)
             img.paste(avatar, (100 + x_margin, y_offset + y_margin))
             font = ImageFont.truetype("fonts/minecraft.ttf", 24)
-            if special_list[i] == "singletype":
-                score = str(int(player.loc['value'])) + ' (' + player.loc['cobblemon'] + ')'
-            else:
-                score = player.iloc[0]
-                if not isinstance(score, str):
-                    score = int(score)
             username = leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player.name]
             if username.empty:
                 username = player.name
             else:
                 username = username['real'].iloc[0]
+            if special_list[i] == "singletype":
+                score = str(int(player.loc['value'])) + ' (' + player.loc['cobblemon'] + ')'
+                response = requests.get("https://cobblemon.tools/pokedex/pokemon/"+player.loc['cobblemon']+'/sprite.png')
+                cobblemon_icon = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.NEAREST)
+                _, _, w, _ = draw.textbbox((0, 0), f"#{rank} {username} - {score}", font=font)
+                img.paste(cobblemon_icon, (180 + w + x_margin, y_offset + y_margin), cobblemon_icon)
+            else:
+                score = player.iloc[0]
+                if not isinstance(score, str):
+                    score = int(score)
             draw.text((170 + x_margin, y_offset + 30 + y_margin), f"#{rank} {username} - {score}", fill="white", font=font)
             y_offset += 80
             rank += 1
@@ -692,7 +696,7 @@ if config['BESTANDWORST']['Enable'] == "true":
 
 # Prepare the counting DF
 count_df = cobblemon_df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
-pokemons_db = pd.read_csv('Pokemon.csv')
+pokemons_db = pd.read_csv('staticdata/Pokemon.csv')
 legendary_list = pokemons_db.loc[pokemons_db['Legendary'] == True]
 
 # Other counting features

@@ -459,10 +459,13 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
     return df, df2
 
 
-def getVanillaLeaderboard(df, cat, subcat, verbose=True, case=None):
-    row = df.loc['stats'].loc[cat].loc[subcat].sort_values().iloc[::-1]
+def getVanillaLeaderboard(df, cat, subcat, verbose=True):
+    if subcat == "total":
+        row = df.loc['stats'].loc[cat].sum().sort_values().iloc[::-1]
+    else:
+        row = df.loc['stats'].loc[cat].loc[subcat].sort_values().iloc[::-1]
     df = pd.DataFrame(row).rename(columns={subcat: 0})
-    if case == "playtime":
+    if cat == "minecraft:custom" and subcat == "minecraft:play_time":
         df[0] = df[0].apply(lambda x: f"{(int(x) // (20*60*60))}h {((int(x)) // (20*60))%60}min")
     if verbose:
         print("Leaderboard of", cat, subcat, ":")
@@ -733,7 +736,7 @@ for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
     if leaderboard_type.split('/')[0] == "vanilla":
         if leaderboard_type.split('/')[1] == "minecraft:custom":
             if leaderboard_type.split('/')[2] == "minecraft:play_time":
-                leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False, "playtime"))
+                leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
             else:
                 leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
         else:

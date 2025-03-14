@@ -19,6 +19,8 @@ import nbt
 from PIL import Image, ImageDraw, ImageFont
 import requests
 from io import BytesIO
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 # Creation or update of the SQLite table
@@ -365,7 +367,10 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
     df2 = pd.DataFrame()
     # Contains captureCount/defeats
     df3 = pd.DataFrame()
+    # Contains PvP duels
+    df4 = pd.DataFrame()
     root_dirnames = []
+    
     if inputmode == "ftp" or inputmode == "sftp":
         if ftppath == "":
             ftppath_complete = "world/cobblemonplayerdata"
@@ -452,6 +457,10 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                     data = json_file['extraData']['cobbledex_discovery']['registers']
                     advancementData = json_file['advancementData']
                     captureCountData = json_file['extraData']['captureCount']['defeats']
+                    try:
+                        duelsData = json_file['extraData']['cobblenavContactData']['contacts']
+                    except KeyError:
+                        duelsData = None
                 
                 temp_df = pd.json_normalize(data, meta_prefix=True)
                 temp_df = temp_df.transpose().iloc[:]
@@ -462,7 +471,6 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                     temp_df = temp_df.rename({0: temp_name}, axis=1)
                 else:
                     temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
-                
                 if not temp_df.empty:
                     temp_df.index = temp_df.index.str.split('.', expand=True)
                     if df.empty:
@@ -490,6 +498,26 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                         df3 = df3.join(temp_df, how="outer")
                 else:
                     df3[temp_name] = np.nan
+                
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+                if duelsData != None:
+                    temp_df = pd.json_normalize(duelsData, meta_prefix=True)
+                    temp_df = temp_df.transpose().iloc[:]
+                    temp_df = pd.DataFrame(temp_df.T.stack())
+                else:
+                    temp_df = pd.DataFrame()
+                if temp_name.empty:
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
+                if not temp_df.empty:
+                    if df4.empty:
+                        df4 = temp_df
+                    else:
+                        df4 = df4.join(temp_df, how="outer")
+                else:
+                    df4[temp_name] = np.nan
                 
             if inputmode == "ftp":
                 ftpserver.cwd("../")  # Move back to the parent directory
@@ -526,6 +554,11 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 data = json_file['extraData']['cobbledex_discovery']['registers']
                 advancementData = json_file['advancementData']
                 captureCountData = json_file['extraData']['captureCount']['defeats']
+                try:
+                    duelsData = json_file['extraData']['cobblenavContactData']['contacts']
+                except KeyError:
+                    duelsData = None
+                    
                 # Import the JSON to a Pandas DF
                 temp_df = pd.json_normalize(data, meta_prefix=True)
                 temp_df = temp_df.transpose().iloc[:]
@@ -565,13 +598,34 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 else:
                     df3[temp_name] = np.nan
                 
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+                if duelsData != None:
+                    temp_df = pd.json_normalize(duelsData, meta_prefix=True)
+                    temp_df = temp_df.transpose().iloc[:]
+                    temp_df = pd.DataFrame(temp_df.T.stack())
+                else:
+                    temp_df = pd.DataFrame()
+                if temp_name.empty:
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
+                if not temp_df.empty:
+                    if df4.empty:
+                        df4 = temp_df
+                    else:
+                        df4 = df4.join(temp_df, how="outer")
+                else:
+                    df4[temp_name] = np.nan
+                
             i += 1
     # Replace missing values by 0 (the stat has simply not been initialized because the associated action was not performed)
     df = df.fillna(0)
     df3 = df3.fillna(0)
+    df4 = df4.fillna(0)
     if csvtoggle == "true":
         df.to_csv(csvpath)
-    return df, df2, df3
+    return df, df2, df3, df4
 
 
 def getVanillaLeaderboard(df, cat, subcat, verbose=True):
@@ -725,6 +779,17 @@ def top_image(df_list, config, titles, special_list):
     # Save the final visualization
     img.save(config['TOPIMAGE']['ImagePath'])
 
+def PvPNetwork():
+    duels = [
+        ("Alice", "Bob", 5),
+        ("Alice", "Charlie", 8),
+        ("Bob", "Charlie", 2),
+        ("Charlie", "David", 10),
+        ("David", "Alice", 3),
+        ("Eve", "Bob", 7),
+    ]
+    
+
 
 # Read config
 config = configparser.ConfigParser()
@@ -758,7 +823,7 @@ if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['E
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
-    cobblemon_df, cobblemon_df2, cobblemon_df3 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
+    cobblemon_df, cobblemon_df2, cobblemon_df3, cobblemon_df4 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
 
 # Close the Connection
 if config['INPUT']['Mode'] == "ftp":

@@ -6,3 +6,5 @@ requests
 configparser
 nbt
 pillow
+matplotlib
+networkx

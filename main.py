@@ -674,6 +674,7 @@ def most_pokemons_leaderboard(df, config, type, conn):
         wb.save(file_path)
 
 def top_image(df_list, config, titles, special_list):
+    translations_df = pd.read_csv('staticdata/pokemon_translations.csv')
     ldb_width = int(config["TOPIMAGE"]["Width"])
     ldb_height = int(config["TOPIMAGE"]["Height"])
     base_y_offset = 50
@@ -708,7 +709,7 @@ def top_image(df_list, config, titles, special_list):
             else:
                 username = username['real'].iloc[0]
             if special_list[i] == "singletype":
-                score = str(int(player.loc['value'])) + ' (' + player.loc['cobblemon'] + ')'
+                score = str(int(player.loc['value'])) + ' (' + translations_df.loc[translations_df['en'].apply(str.lower) == player.loc['cobblemon'].lower()]['fr'].iloc[0] + ')'
                 response = requests.get("https://cobblemon.tools/pokedex/pokemon/"+player.loc['cobblemon']+'/sprite.png')
                 cobblemon_icon = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.NEAREST)
                 _, _, w, _ = draw.textbbox((0, 0), f"#{rank} {username} - {score}", font=font)
@@ -865,6 +866,7 @@ leaderboards_to_show = []
 special_list = []
 for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
     leaderboard_type = leaderboard_type.strip()
+    print("Preparing top leaderboard:", leaderboard_type)
     if leaderboard_type.split('/')[0] == "vanilla":
         if leaderboard_type.split('/')[1] == "minecraft:custom":
             if leaderboard_type.split('/')[2] == "minecraft:play_time":

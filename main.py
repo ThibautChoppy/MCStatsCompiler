@@ -21,6 +21,8 @@ import requests
 from io import BytesIO
 import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.patheffects as pe
 
 
 # Creation or update of the SQLite table
@@ -779,16 +781,54 @@ def top_image(df_list, config, titles, special_list):
     # Save the final visualization
     img.save(config['TOPIMAGE']['ImagePath'])
 
-def PvPNetwork():
-    duels = [
-        ("Alice", "Bob", 5),
-        ("Alice", "Charlie", 8),
-        ("Bob", "Charlie", 2),
-        ("Charlie", "David", 10),
-        ("David", "Alice", 3),
-        ("Eve", "Bob", 7),
-    ]
+def PvP_network(df, config):
+    print("Now preparing the duels graph...")
+    leaderboard_usernames_df = pd.read_csv('staticdata/leaderboard_usernames.csv')
     
+    # Prepare data
+    duels = []
+    done = []
+    for player in df.columns:
+        for encounter in df.index.get_level_values(0).unique():
+            encounter_df = df[player].loc[encounter]
+            if encounter_df.loc['key'] == 0 or encounter_df.loc['name'] in done:
+                continue
+            duels.append((player, encounter_df.loc['name'], encounter_df.loc['winnings']+encounter_df.loc['losses']))
+        done.append(player)
+
+    G = nx.Graph()
+    for p1, p2, count in duels:
+        if p1 != p2:  # Avoid self-loops
+            G.add_edge(p1, p2, weight=count)
+    # Node sizes based on total duel involvement
+    node_duel_counts = {player: sum(d['weight'] for _, _, d in G.edges(player, data=True)) for player in G.nodes()}
+    node_sizes = np.array([node_duel_counts[player] for player in G.nodes()])
+    # Edge widths based on duel frequency
+    edge_weights = np.array([d['weight'] for _, _, d in G.edges(data=True)])
+    cmap = plt.cm.cool
+    norm = mcolors.Normalize(vmin=min(node_sizes), vmax=max(node_sizes))
+    node_colors = [cmap(norm(node_duel_counts[player])) for player in G.nodes()]
+    pos = nx.forceatlas2_layout(G, strong_gravity=True)
+    _, ax = plt.subplots(figsize=(12, 8), facecolor='#9ca2ff')
+    ax.set_facecolor('#9ca2ff')
+    # Draw edges with varying width and alpha
+    nx.draw_networkx_edges(G, pos, width=edge_weights / max(edge_weights) * 5, alpha=0.6, edge_color="gray")
+    # Draw nodes with color mapping
+    nx.draw_networkx_nodes(G, pos, node_size=(node_sizes / max(node_sizes)) * 2500 + 200, node_color=node_colors, edgecolors="white")
+    labels = {player: leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player]['real'].iloc[0] if leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player].empty else player for player in G.nodes()}
+    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_color="black", font_weight="bold")
+
+    # Color bar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.03, pad=0.02)
+    cbar.set_label("Duels joués", color="white")
+    cbar.ax.yaxis.set_tick_params(color="white")
+    plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color="white")
+
+    plt.axis("off")
+    plt.title("Réseau des duels", fontsize=14, color="white", fontweight="bold")
+    plt.savefig(config['PVPNETWORK']['ImagePath'], dpi=299)
 
 
 # Read config
@@ -927,46 +967,50 @@ if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     leaderboards["cobblemon_money"] = player_sum
     most_pokemons_leaderboard(player_sum, config, "money",  conn)
 
-leaderboards_to_show = []
-special_list = []
-for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
-    leaderboard_type = leaderboard_type.strip()
-    print("Preparing top leaderboard:", leaderboard_type)
-    if leaderboard_type.split('/')[0] == "vanilla":
-        if leaderboard_type.split('/')[1] == "minecraft:custom":
-            if leaderboard_type.split('/')[2] == "minecraft:play_time":
-                leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
+if config['TOPIMAGE']['Enable'] == "true":
+    leaderboards_to_show = []
+    special_list = []
+    for leaderboard_type in config['TOPIMAGE']['Leaderboards'].split(','):
+        leaderboard_type = leaderboard_type.strip()
+        print("Preparing top leaderboard:", leaderboard_type)
+        if leaderboard_type.split('/')[0] == "vanilla":
+            if leaderboard_type.split('/')[1] == "minecraft:custom":
+                if leaderboard_type.split('/')[2] == "minecraft:play_time":
+                    leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
+                else:
+                    leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
+            elif leaderboard_type.split('/')[1] == "advancements":
+                leaderboards_to_show.append(getAdvancementsLeaderboard(advancements_df))
             else:
                 leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
-        elif leaderboard_type.split('/')[1] == "advancements":
-            leaderboards_to_show.append(getAdvancementsLeaderboard(advancements_df))
+        elif leaderboard_type.split('/')[0] == "cobblemon":
+            if leaderboard_type.split('/')[1] == "pvp":
+                leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]))
+            elif leaderboard_type.split('/')[1] == "pvw":
+                leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvWBattleVictoryCount"]))
+            elif leaderboard_type.split('/')[1] == "total":
+                leaderboards_to_show.append(leaderboards["cobblemon_total"])
+            elif leaderboard_type.split('/')[1] == "shiny":
+                leaderboards_to_show.append(leaderboards["cobblemon_shiny"])
+            elif leaderboard_type.split('/')[1] == "legendary":
+                leaderboards_to_show.append(leaderboards["cobblemon_legendary"])
+            elif leaderboard_type.split('/')[1] == "money":
+                leaderboards_to_show.append(leaderboards["cobblemon_money"])
+            elif leaderboard_type.split('/')[1] == "singletype":
+                leaderboards_to_show.append(getCobblemonCaptureCountLeaderboard(cobblemon_df3))
+            elif leaderboard_type.split('/')[1] == "waystones":
+                leaderboards_to_show.append(getStandardLeaderboard(waystones_df['waystones']))
+        # Some leaderboards require a special layout on the image
+        if leaderboard_type.split('/')[0] == "cobblemon" and leaderboard_type.split('/')[1] == "singletype":
+            special_list.append("singletype")
         else:
-            leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
-    elif leaderboard_type.split('/')[0] == "cobblemon":
-        if leaderboard_type.split('/')[1] == "pvp":
-            leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]))
-        elif leaderboard_type.split('/')[1] == "pvw":
-            leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvWBattleVictoryCount"]))
-        elif leaderboard_type.split('/')[1] == "total":
-            leaderboards_to_show.append(leaderboards["cobblemon_total"])
-        elif leaderboard_type.split('/')[1] == "shiny":
-            leaderboards_to_show.append(leaderboards["cobblemon_shiny"])
-        elif leaderboard_type.split('/')[1] == "legendary":
-            leaderboards_to_show.append(leaderboards["cobblemon_legendary"])
-        elif leaderboard_type.split('/')[1] == "money":
-            leaderboards_to_show.append(leaderboards["cobblemon_money"])
-        elif leaderboard_type.split('/')[1] == "singletype":
-            leaderboards_to_show.append(getCobblemonCaptureCountLeaderboard(cobblemon_df3))
-        elif leaderboard_type.split('/')[1] == "waystones":
-            leaderboards_to_show.append(getStandardLeaderboard(waystones_df['waystones']))
-    # Some leaderboards require a special layout on the image
-    if leaderboard_type.split('/')[0] == "cobblemon" and leaderboard_type.split('/')[1] == "singletype":
-        special_list.append("singletype")
-    else:
-        special_list.append(None)
+            special_list.append(None)
+    # Minecraft-style top feature
+    top_image(leaderboards_to_show, config, config['TOPIMAGE']['Titles'].split(","), special_list)
 
-# Minecraft-style top feature
-top_image(leaderboards_to_show, config, config['TOPIMAGE']['Titles'].split(","), special_list)
+# Duels network graph
+if config['PVPNETWORK']['Enable'] == "true":
+    PvP_network(cobblemon_df4, config)
 
 # SQLite close connection
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:

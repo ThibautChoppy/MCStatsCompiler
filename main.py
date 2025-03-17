@@ -23,6 +23,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patheffects as pe
+import matplotlib.ticker as ticker
+import matplotlib.font_manager as fm
 
 
 # Creation or update of the SQLite table
@@ -371,6 +373,8 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
     df3 = pd.DataFrame()
     # Contains PvP duels
     df4 = pd.DataFrame()
+    # Contains totalTypeCaptureCounts
+    df5 = pd.DataFrame()
     root_dirnames = []
     
     if inputmode == "ftp" or inputmode == "sftp":
@@ -457,6 +461,10 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 with open(local_file, "r") as file:
                     json_file = json.load(file)
                     data = json_file['extraData']['cobbledex_discovery']['registers']
+                    # The above code is a comment in Python. Comments in Python start with a hash
+                    # symbol (#) and are used to provide explanations or notes within the code. In
+                    # this case, the comment mentions "advancementData" which could be a variable or a
+                    # placeholder for some data related to advancement.
                     advancementData = json_file['advancementData']
                     captureCountData = json_file['extraData']['captureCount']['defeats']
                     try:
@@ -521,6 +529,22 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 else:
                     df4[temp_name] = np.nan
                 
+                temp_df = pd.json_normalize(advancementData['totalTypeCaptureCounts'], meta_prefix=True)
+                temp_df = temp_df.transpose().iloc[:]
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+                if temp_name.empty:
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
+                if not temp_df.empty:
+                    if df5.empty:
+                        df5 = temp_df
+                    else:
+                        df5 = df5.join(temp_df, how="outer")
+                else:
+                    df5[temp_name] = np.nan
+                
             if inputmode == "ftp":
                 ftpserver.cwd("../")  # Move back to the parent directory
             else:
@@ -583,6 +607,7 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                     
                 df2.loc["totalPvPBattleVictoryCount", temp_name] = advancementData['totalPvPBattleVictoryCount']
                 df2.loc["totalPvWBattleVictoryCount", temp_name] = advancementData['totalPvWBattleVictoryCount']
+                df2.loc["totalTradedCount", temp_name] = advancementData['totalTradedCount']
                 
                 temp_df = pd.json_normalize(captureCountData, meta_prefix=True)
                 temp_df = temp_df.transpose().iloc[:]
@@ -619,15 +644,32 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                         df4 = df4.join(temp_df, how="outer")
                 else:
                     df4[temp_name] = np.nan
+                    
+                temp_df = pd.json_normalize(advancementData['totalTypeCaptureCounts'], meta_prefix=True)
+                temp_df = temp_df.transpose().iloc[:]
+                temp_name = names.loc[names['uuid'] == filename[:-5]]['name']
+                if temp_name.empty:
+                    temp_name = filename[:-5]
+                    temp_df = temp_df.rename({0: temp_name}, axis=1)
+                else:
+                    temp_df = temp_df.rename({0: temp_name.iloc[0]}, axis=1)
+                if not temp_df.empty:
+                    if df5.empty:
+                        df5 = temp_df
+                    else:
+                        df5 = df5.join(temp_df, how="outer")
+                else:
+                    df5[temp_name] = np.nan
                 
             i += 1
     # Replace missing values by 0 (the stat has simply not been initialized because the associated action was not performed)
     df = df.fillna(0)
     df3 = df3.fillna(0)
     df4 = df4.fillna(0)
+    df5 = df5.fillna(0)
     if csvtoggle == "true":
         df.to_csv(csvpath)
-    return df, df2, df3, df4
+    return df, df2, df3, df4, df5
 
 
 def getVanillaLeaderboard(df, cat, subcat, verbose=True):
@@ -815,7 +857,7 @@ def PvP_network(df, config):
     nx.draw_networkx_edges(G, pos, width=edge_weights / max(edge_weights) * 5, alpha=0.6, edge_color="gray")
     # Draw nodes with color mapping
     nx.draw_networkx_nodes(G, pos, node_size=(node_sizes / max(node_sizes)) * 2500 + 200, node_color=node_colors, edgecolors="white")
-    labels = {player: leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player]['real'].iloc[0] if leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player].empty else player for player in G.nodes()}
+    labels = {player: leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player]['real'].iloc[0] if not leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player].empty else player for player in G.nodes()}
     nx.draw_networkx_labels(G, pos, labels, font_size=8, font_color="black", font_weight="bold")
 
     # Color bar
@@ -827,8 +869,28 @@ def PvP_network(df, config):
     plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color="white")
 
     plt.axis("off")
-    plt.title("Réseau des duels", fontsize=14, color="white", fontweight="bold")
+    mc_font = fm.FontProperties(fname='fonts/Minecraft-Seven_v2.ttf')
+    plt.title("Réseau des duels", fontsize=36, color="white", fontweight="bold", font=mc_font)
     plt.savefig(config['PVPNETWORK']['ImagePath'], dpi=299)
+    plt.clf()
+
+def cobblemon_types_barchart(df, config):
+    print("Now preparing the types barchart...")
+    pokemon_types_df = pd.read_csv('staticdata/pokemon_types.csv')
+    total = df.sum().sum()
+    df['proportion'] = df.apply(lambda row: 100 * row.sum() / total, axis=1)
+    df = pd.merge(df, pokemon_types_df, left_on=df.index, right_on='en')
+    barchart = plt.bar(df['fr'], df['proportion'], color=df['color'])
+    mc_font = fm.FontProperties(fname='fonts/Minecraft-Seven_v2.ttf')
+    plt.bar_label(barchart, df['fr'], padding=6, rotation=90, fontsize=18, fontweight='bold', font=mc_font, color='white')
+    plt.xticks([], [])
+    plt.gca().tick_params(axis='y', colors='white')
+    plt.gca().yaxis.set_major_formatter(ticker.PercentFormatter(decimals=0))
+    plt.gca().set_facecolor('none') # Set transparent background
+    for spine in plt.gca().spines.values(): # Remove the figure border
+        spine.set_visible(False)
+    plt.savefig(config['TYPESBARCHART']['ImagePath'], dpi=299, transparent=True)
+    plt.clf()
 
 
 # Read config
@@ -863,8 +925,8 @@ if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['E
 
 if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     print("LOADING COBBLEMON DATA")
-    cobblemon_df, cobblemon_df2, cobblemon_df3, cobblemon_df4 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
-
+    cobblemon_df, cobblemon_df2, cobblemon_df3, cobblemon_df4, cobblemon_df5 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
+cobblemon_df2.to_csv('temp.csv')
 # Close the Connection
 if config['INPUT']['Mode'] == "ftp":
     ftp_server.quit()
@@ -888,12 +950,12 @@ legendary_list = pokemons_db.loc[pokemons_db['Legendary'] == True]
 # Other counting features
 if config['COBBLEMONCOUNTINGS']['Enable'] == "true":
     count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
+    #print(count_df['times_caught'].sort_values().to_string())
     print("Seen or caught:", len(count_df))
     # Get yet-uncaught pokemons
     caught_count_df = count_df.loc[count_df['times_caught'] > 0]
     print("Caught only:", len(caught_count_df))
     caught_list = (caught_count_df.index.get_level_values(0) + "_" + caught_count_df.index.get_level_values(1)).to_list()
-    #print(count_df['times_caught'].sort_values().to_string())
     count_df.drop('times_caught', axis=1, inplace=True)
     uncaught_list = []
     for _, row in pokemons_db.iterrows():
@@ -1011,6 +1073,10 @@ if config['TOPIMAGE']['Enable'] == "true":
 # Duels network graph
 if config['PVPNETWORK']['Enable'] == "true":
     PvP_network(cobblemon_df4, config)
+
+# Cobblemon types barchart
+if config['TYPESBARCHART']['Enable'] == "true":
+    cobblemon_types_barchart(cobblemon_df5, config)
 
 # SQLite close connection
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:

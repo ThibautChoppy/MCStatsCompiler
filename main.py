@@ -22,7 +22,6 @@ from io import BytesIO
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-import matplotlib.patheffects as pe
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
 
@@ -702,7 +701,8 @@ def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
     ranks['non_zero_values'] = df.apply(lambda row: nb_players - (row == 0).sum(), axis=1)
     ranks['value'] = df[username]
     output = ranks[[username, 'value', 'non_zero_values']].sort_values(username, ascending=False).rename(columns={username:"rank_"+username, "value":"value_"+username})
-    print(output) # add .to_string() for the whole output
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        print(output)
 
 def getAdvancementsLeaderboard(df):
     count_df = pd.DataFrame((df == True).sum().sort_values())
@@ -899,7 +899,7 @@ def cobblemon_types_barchart(df, config):
     plt.savefig(config['TYPESBARCHART']['ImagePath'], dpi=299, transparent=True)
     plt.clf()
     
-def statsPokeballs(config, ftpserver):
+def stats_pokeballs(config, ftpserver):
     print("Now preparing the pokeball stats...")
     df = pd.DataFrame()
     root_dirnames = []
@@ -1059,6 +1059,80 @@ def statsPokeballs(config, ftpserver):
     # Replace missing values by 0 (the stat has simply not been initialized because the associated action was not performed)
     df = df.fillna(0)
     df.to_csv(config['STATSPOKEBALLS']['CSVPath'])
+
+def player_card(config, username, stats_values):
+    skin_url = "https://minotar.net/armor/bust/"+username+"/500.png"
+    custom_sentence1 = "Top 1 en pose de blocs de terre"
+    custom_sentence2 = "Top 1 en récolte de baies oranges"
+    background_path = "images/background5.png"
+    skins_path = "images/skins/"
+    stats_labels = ["Temps de jeu", "Cobblemons attrapés", "Crates lootées", "Duels PvP gagnés", "Advancements"]
+
+    # Skin image
+    response = requests.get(skin_url)
+    skin_img = Image.open(skins_path+username+".png").convert("RGBA")
+    skin_img = skin_img.resize((185, 185))
+
+    # Generate radar chart
+    size = (400, 300)
+    dpi = 299
+    num_vars = len(stats_labels)
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    values_copy = stats_values + [stats_values[0]]
+    angles_copy = angles + [angles[0]]
+    angles += angles[:1]
+    # Calculate figure size in inches for desired pixel size
+    fig_width, fig_height = size[0] / dpi, size[1] / dpi
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi, subplot_kw=dict(polar=True))
+    ax.plot(angles_copy, values_copy, color='cyan', linewidth=2)
+    ax.fill(angles_copy, values_copy, color='cyan', alpha=0.25)
+    ax.set_yticklabels([])
+    ax.set_xticks(angles[:-1])
+    ax.grid(True, linestyle='dotted', color='gray')
+    ax.set_xticklabels(stats_labels, color='white', font=fm.FontProperties(fname='fonts/Minecraft-Seven_v2.ttf', size=5))
+
+    # Transparency settings
+    fig.patch.set_alpha(0)
+    ax.set_facecolor('none')
+
+    radar_buf = BytesIO()
+    plt.savefig(radar_buf, format='PNG', transparent=True, bbox_inches='tight', pad_inches=0.1)
+    radar_buf.seek(0)
+    plt.close()
+    radar_chart_img = Image.open(radar_buf)
+    radar_chart_img = radar_chart_img.resize(size, Image.Resampling.LANCZOS)
+
+    # Create the card
+    card_width, card_height = 700, 400
+    if not os.path.exists(background_path):
+        raise FileNotFoundError(f"Background image not found at '{background_path}'")
+    background_img = Image.open(background_path).convert("RGBA")
+    background_img = background_img.resize((card_width, card_height))
+    card = background_img.copy()
+    draw = ImageDraw.Draw(card)
+    # Skin and radar chart images
+    card.paste(skin_img, (30, 30), skin_img)
+    card.paste(radar_chart_img, (290, 10), radar_chart_img)
+    font_title = ImageFont.truetype("fonts/Minecraft-Seven_v2.ttf", 44)
+    font_sentence = ImageFont.truetype("fonts/Minecraft-Seven_v2.ttf", 28)
+
+    # Draw username and sentence with a shadow for better visibility
+    def draw_text_with_shadow(draw_obj, position, text, font, fill, shadow_color=(0, 0, 0)):
+        x, y = position
+        draw_obj.text((x+1, y+1), text, font=font, fill=shadow_color)
+        draw_obj.text((x, y), text, font=font, fill=fill)
+    leaderboard_usernames_df = pd.read_csv('staticdata/leaderboard_usernames.csv')
+    display_name = leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == username]
+    if not display_name.empty:
+        display_name = display_name['real'].iloc[0]
+    else:
+        display_name = username
+    draw_text_with_shadow(draw, (30, 250), display_name, font_title, fill=(255, 255, 255))
+    draw_text_with_shadow(draw, (30, 310), custom_sentence1, font_sentence, fill=(200, 200, 200))
+    draw_text_with_shadow(draw, (30, 350), custom_sentence2, font_sentence, fill=(200, 200, 200))
+    # Save the card
+    output_path = config['PLAYERCARDS']['ImagePath']+"/"+username+".png"
+    card.save(output_path)
 
 
 # Read config
@@ -1250,7 +1324,42 @@ if config['TYPESBARCHART']['Enable'] == "true":
 
 # Cobblemon types barchart
 if config['STATSPOKEBALLS']['Enable'] == "true":
-    statsPokeballs(config, ftp_server)
+    stats_pokeballs(config, ftp_server)
+
+# Custom player cards
+if config['PLAYERCARDS']['Enable'] == "true":
+    print("Now creating player cards...")
+    i = 0
+    for player in vanilla_df.drop('zero_count', axis=1).columns:
+        if i%10==0: print("Processing player no", i)
+        # Start by downloading the skin image if it is not already downloaded
+        destination_path = "images/skins/"+player+".png"
+        if not os.path.exists(destination_path):
+            os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+            response = requests.get("https://minotar.net/armor/bust/"+player+"/500.png")
+            if response.status_code == 200:
+                with open(destination_path, 'wb') as file:
+                    file.write(response.content)
+            else:
+                print(f"Failed to download skin image. Status code: {response.status_code}")
+        try:
+            #["Temps de jeu", "Cobblemons attrapés", "Crates lootées", "Duels PvP gagnés", "Advancements"]
+            stats_max = [vanilla_df.loc['stats'].loc['minecraft:custom'].loc['minecraft:play_time'].max(),
+                        leaderboards["cobblemon_total"].max(),
+                        vanilla_df.loc['stats'].loc['minecraft:custom'].loc['lootr:looted_stat'].max(),
+                        getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]).max(),
+                        getAdvancementsLeaderboard(advancements_df).max()]
+            # Scale 0-100
+            stats_values = [vanilla_df.loc['stats'].loc['minecraft:custom'].loc['minecraft:play_time'][player]/stats_max[0],
+                            (leaderboards["cobblemon_total"].loc[player]/stats_max[1]).iloc[0],
+                            vanilla_df.loc['stats'].loc['minecraft:custom'].loc['lootr:looted_stat'][player]/stats_max[2],
+                            (getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]).loc[player]/stats_max[3]).iloc[0],
+                            (getAdvancementsLeaderboard(advancements_df).loc[player]/stats_max[4]).iloc[0]]
+        except KeyError:
+            print("Skipped player", player)
+            continue
+        player_card(config, player, stats_values)
+        i += 1
 
 # SQLite close connection
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:
@@ -1263,3 +1372,13 @@ if config['INPUT']['Mode'] == "sftp":
     ftp_server.close()
 
 print("Done!")
+
+'''
+cobblemon_df2.to_csv('temp/cobblemon2.csv')
+cobblemon_df3.to_csv('temp/cobblemon3.csv')
+cobblemon_df4.to_csv('temp/cobblemon4.csv')
+cobblemon_df5.to_csv('temp/cobblemon5.csv')
+money_df.to_csv('temp/money.csv')
+waystones_df.to_csv('temp/waystones.csv')
+advancements_df.to_csv('temp/advancements.csv')
+'''

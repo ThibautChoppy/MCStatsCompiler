@@ -774,8 +774,10 @@ def top_image(df_list, config, titles, special_list):
     base_y_offset = 50
     base_width, base_height = 640, 210+int(config['TOPIMAGE']['NbPlayers'])*base_y_offset
     width, height = base_width*ldb_width, base_height*ldb_height
-    # Create an image for the leaderboard
-    img = Image.new("RGB", (width, height), "#2C3E50")
+    # Load background image
+    background = Image.open("images/background4.png").convert("RGB")
+    background = background.resize((width, height), Image.Resampling.LANCZOS)
+    img = background.copy()
     draw = ImageDraw.Draw(img)
     
     # Import usernames to show instead of the Minecraft username
@@ -822,6 +824,7 @@ def top_image(df_list, config, titles, special_list):
 def PvP_network(df, config):
     print("Now preparing the duels graph...")
     leaderboard_usernames_df = pd.read_csv('staticdata/leaderboard_usernames.csv')
+    mc_font = fm.FontProperties(fname='fonts/Minecraft-Seven_v2.ttf')
     
     # Prepare data
     duels = []
@@ -847,26 +850,34 @@ def PvP_network(df, config):
     norm = mcolors.Normalize(vmin=min(node_sizes), vmax=max(node_sizes))
     node_colors = [cmap(norm(node_duel_counts[player])) for player in G.nodes()]
     pos = nx.forceatlas2_layout(G, strong_gravity=True)
-    _, ax = plt.subplots(figsize=(12, 8), facecolor='#9ca2ff')
-    ax.set_facecolor('#9ca2ff')
+    
+    x_vals, y_vals = zip(*pos.values())
+    x_pad = (max(x_vals) - min(x_vals)) * 0.1
+    y_pad = (max(y_vals) - min(y_vals)) * 0.1
+    xlim = (min(x_vals) - x_pad, max(x_vals) + x_pad)
+    ylim = (min(y_vals) - y_pad, max(y_vals) + y_pad)
+    _, ax = plt.subplots(figsize=(12, 8), facecolor='#000000')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.imshow(plt.imread('images/background1.png'), extent=(*xlim, *ylim), aspect='auto', zorder=0)
     # Draw edges with varying width and alpha
     nx.draw_networkx_edges(G, pos, width=edge_weights / max(edge_weights) * 5, alpha=0.6, edge_color="gray")
     # Draw nodes with color mapping
-    nx.draw_networkx_nodes(G, pos, node_size=(node_sizes / max(node_sizes)) * 2500 + 200, node_color=node_colors, edgecolors="white")
+    nx.draw_networkx_nodes(G, pos, node_size=(node_sizes / max(node_sizes)) * 2500 + 200, node_color=node_colors, edgecolors="#d1d1d1")
     labels = {player: leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player]['real'].iloc[0] if not leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player].empty else player for player in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_color="black", font_weight="bold")
+    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_color="white", font_weight="bold")
 
     # Color bar
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, fraction=0.03, pad=0.02)
-    cbar.set_label("Duels joués", color="white")
+    cbar.set_label("Duels joués", color="white", font=mc_font)
     cbar.ax.yaxis.set_tick_params(color="white")
     plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color="white")
 
     plt.axis("off")
-    mc_font = fm.FontProperties(fname='fonts/Minecraft-Seven_v2.ttf')
-    plt.title("Réseau des duels", fontsize=36, color="white", fontweight="bold", font=mc_font)
+    mc_font_title = fm.FontProperties(fname='fonts/Minecraft-Seven_v2.ttf', size=42)
+    plt.title("Réseau des duels", color="white", fontweight="bold", font=mc_font_title)
     plt.savefig(config['PVPNETWORK']['ImagePath'], dpi=299)
     plt.clf()
 

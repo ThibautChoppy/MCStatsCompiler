@@ -16,7 +16,7 @@ import stat
 import sqlite3
 import shutil
 import nbt
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 import requests
 from io import BytesIO
 import networkx as nx
@@ -694,15 +694,15 @@ def getVanillaBestAndWorst(df, username, cleaning, cleaningvalue):
     if cleaning == "true":
         before_value = df.shape[0]
         df['zero_count'] = df.apply(lambda row: (row == 0).sum(), axis=1)
-        df.drop(df[df['zero_count'] > (nb_players-int(cleaningvalue))].index, inplace=True)
+        df = df.drop(df[df['zero_count'] > (nb_players-int(cleaningvalue))].index)
         df = df.drop('zero_count', axis=1)
         print(before_value - df.shape[0], "rows dropped out of", before_value, "because of cleaning.")
     ranks = df.rank(axis=1, method='min', ascending=False)
     ranks['non_zero_values'] = df.apply(lambda row: nb_players - (row == 0).sum(), axis=1)
     ranks['value'] = df[username]
     output = ranks[[username, 'value', 'non_zero_values']].sort_values(username, ascending=False).rename(columns={username:"rank_"+username, "value":"value_"+username})
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(output)
+    with pd.option_context('display.max_rows', None):
+        print(output) # add .to_string() for the whole output
 
 def getAdvancementsLeaderboard(df):
     count_df = pd.DataFrame((df == True).sum().sort_values())
@@ -775,10 +775,9 @@ def top_image(df_list, config, titles, special_list):
     base_width, base_height = 640, 210+int(config['TOPIMAGE']['NbPlayers'])*base_y_offset
     width, height = base_width*ldb_width, base_height*ldb_height
     # Load background image
-    background = Image.open("images/background4.png").convert("RGB")
+    background = Image.open("images/background4.png").convert("RGBA")
     background = background.resize((width, height), Image.Resampling.LANCZOS)
     img = background.copy()
-    draw = ImageDraw.Draw(img)
     
     # Import usernames to show instead of the Minecraft username
     leaderboard_usernames_df = pd.read_csv('staticdata/leaderboard_usernames.csv')
@@ -786,8 +785,14 @@ def top_image(df_list, config, titles, special_list):
     for i, df in enumerate(df_list):
         x_margin = i%ldb_width * base_width
         y_margin = math.floor(i/ldb_height) * base_height
+        # Add the rounded rectangles
+        overlay = Image.new('RGBA', img.size)
+        draw2 = ImageDraw.Draw(overlay)
+        draw2.rounded_rectangle([x_margin+10, y_margin+5, x_margin+base_width-10, y_margin+base_height-5], radius=40, fill=(0, 0, 0, 100))
+        img = Image.alpha_composite(img, overlay)
         # Title
         font = ImageFont.truetype("fonts/Minecraft-Seven_v2.ttf", 32)
+        draw = ImageDraw.Draw(img)
         _, _, w, _ = draw.textbbox((0, 0), titles[i], font=font)
         draw.text((((width/ldb_width)-w)/2 + x_margin, 10 + y_margin), titles[i], align="center", fill="gold", font=font)
         
@@ -856,7 +861,7 @@ def PvP_network(df, config):
     y_pad = (max(y_vals) - min(y_vals)) * 0.1
     xlim = (min(x_vals) - x_pad, max(x_vals) + x_pad)
     ylim = (min(y_vals) - y_pad, max(y_vals) + y_pad)
-    _, ax = plt.subplots(figsize=(12, 8), facecolor='#000000')
+    _, ax = plt.subplots(figsize=(12, 8), facecolor='#000000')  
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.imshow(plt.imread('images/background1.png'), extent=(*xlim, *ylim), aspect='auto', zorder=0)
@@ -865,7 +870,13 @@ def PvP_network(df, config):
     # Draw nodes with color mapping
     nx.draw_networkx_nodes(G, pos, node_size=(node_sizes / max(node_sizes)) * 2500 + 200, node_color=node_colors, edgecolors="#d1d1d1")
     labels = {player: leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player]['real'].iloc[0] if not leaderboard_usernames_df.loc[leaderboard_usernames_df['minecraft'] == player].empty else player for player in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels, font_size=8, font_color="white", font_weight="bold")
+    #nx.draw_networkx_labels(G, pos, labels, font_size=9, font_color="black", font_weight="bold")
+    #nx.draw_networkx_labels(G, pos, labels, font_size=8, font_color="white", font_weight="bold")
+    for node, (x, y) in pos.items():
+        # Shadow (black, slightly offset)
+        ax.text(x + 0.03, y - 0.03, labels[node], fontsize=8, color='black', zorder=2, ha="center", va="center")
+        # Main label (white, on top)
+        ax.text(x, y, labels[node], fontsize=8, color='white', zorder=3, ha="center", va="center")
 
     # Color bar
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -1061,15 +1072,15 @@ def stats_pokeballs(config, ftpserver):
     df.to_csv(config['STATSPOKEBALLS']['CSVPath'])
 
 def player_card(config, username, stats_values):
-    skin_url = "https://minotar.net/armor/bust/"+username+"/500.png"
-    custom_sentence1 = "Top 1 en pose de blocs de terre"
-    custom_sentence2 = "Top 1 en récolte de baies oranges"
+    cards_df = pd.read_csv('staticdata/cards.csv')
+    custom_sentence1 = str(cards_df.loc[cards_df['name'] == username]['stat1'].iloc[0])
+    custom_sentence2 = str(cards_df.loc[cards_df['name'] == username]['stat2'].iloc[0])
+    starter_fr = str(cards_df.loc[cards_df['name'] == username]['starter_fr'].iloc[0])
     background_path = "images/background5.png"
     skins_path = "images/skins/"
     stats_labels = ["Temps de jeu", "Cobblemons attrapés", "Crates lootées", "Duels PvP gagnés", "Advancements"]
 
     # Skin image
-    response = requests.get(skin_url)
     skin_img = Image.open(skins_path+username+".png").convert("RGBA")
     skin_img = skin_img.resize((185, 185))
 
@@ -1078,14 +1089,14 @@ def player_card(config, username, stats_values):
     dpi = 299
     num_vars = len(stats_labels)
     angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-    values_copy = stats_values + [stats_values[0]]
-    angles_copy = angles + [angles[0]]
+    stats_values += stats_values[:1]
     angles += angles[:1]
     # Calculate figure size in inches for desired pixel size
     fig_width, fig_height = size[0] / dpi, size[1] / dpi
     fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi, subplot_kw=dict(polar=True))
-    ax.plot(angles_copy, values_copy, color='cyan', linewidth=2)
-    ax.fill(angles_copy, values_copy, color='cyan', alpha=0.25)
+    ax.plot(angles, stats_values, color='cyan', linewidth=2)
+    ax.fill(angles, stats_values, color='cyan', alpha=0.25)
+    ax.set_ylim(0, 1)
     ax.set_yticklabels([])
     ax.set_xticks(angles[:-1])
     ax.grid(True, linestyle='dotted', color='gray')
@@ -1103,7 +1114,7 @@ def player_card(config, username, stats_values):
     radar_chart_img = radar_chart_img.resize(size, Image.Resampling.LANCZOS)
 
     # Create the card
-    card_width, card_height = 700, 400
+    card_width, card_height = 700, 450
     if not os.path.exists(background_path):
         raise FileNotFoundError(f"Background image not found at '{background_path}'")
     background_img = Image.open(background_path).convert("RGBA")
@@ -1130,6 +1141,19 @@ def player_card(config, username, stats_values):
     draw_text_with_shadow(draw, (30, 250), display_name, font_title, fill=(255, 255, 255))
     draw_text_with_shadow(draw, (30, 310), custom_sentence1, font_sentence, fill=(200, 200, 200))
     draw_text_with_shadow(draw, (30, 350), custom_sentence2, font_sentence, fill=(200, 200, 200))
+    draw_text_with_shadow(draw, (30, 400), "Starter : "+starter_fr, font_sentence, fill=(230, 230, 230))
+    translations_df = pd.read_csv('staticdata/pokemon_translations.csv')
+    if starter_fr != "nan":
+        starter_en = translations_df.loc[translations_df['fr'] == starter_fr]['en'].iloc[0]
+        # Tailow is spelled Taillow on the Cobblemon website
+        if starter_en == "Tailow": starter_en = "Taillow"
+        try:
+            response = requests.get("https://cobblemon.tools/pokedex/pokemon/"+starter_en.lower()+'/sprite.png')
+            cobblemon_icon = Image.open(BytesIO(response.content)).resize((64, 64), Image.Resampling.NEAREST)
+            _, _, w, _ = draw.textbbox((0, 0), "Starter : "+starter_fr, font=font_sentence)
+            card.paste(cobblemon_icon, (w + 40, 380), cobblemon_icon)
+        except (ValueError, UnidentifiedImageError):
+            print("Warning: icon for "+starter_en+" could not be found.")
     # Save the card
     output_path = config['PLAYERCARDS']['ImagePath']+"/"+username+".png"
     card.save(output_path)
@@ -1330,7 +1354,11 @@ if config['STATSPOKEBALLS']['Enable'] == "true":
 if config['PLAYERCARDS']['Enable'] == "true":
     print("Now creating player cards...")
     i = 0
-    for player in vanilla_df.drop('zero_count', axis=1).columns:
+    try:
+        df = vanilla_df.drop('zero_count', axis=1)
+    except KeyError:
+        df = vanilla_df
+    for player in df.columns:
         if i%10==0: print("Processing player no", i)
         # Start by downloading the skin image if it is not already downloaded
         destination_path = "images/skins/"+player+".png"
@@ -1349,7 +1377,7 @@ if config['PLAYERCARDS']['Enable'] == "true":
                         vanilla_df.loc['stats'].loc['minecraft:custom'].loc['lootr:looted_stat'].max(),
                         getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]).max(),
                         getAdvancementsLeaderboard(advancements_df).max()]
-            # Scale 0-100
+            # Scale 0-1
             stats_values = [vanilla_df.loc['stats'].loc['minecraft:custom'].loc['minecraft:play_time'][player]/stats_max[0],
                             (leaderboards["cobblemon_total"].loc[player]/stats_max[1]).iloc[0],
                             vanilla_df.loc['stats'].loc['minecraft:custom'].loc['lootr:looted_stat'][player]/stats_max[2],

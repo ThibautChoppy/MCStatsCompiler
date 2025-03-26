@@ -1184,12 +1184,12 @@ if config['INPUT']['Mode'] == "sftp":
 # Database initialisation
 conn = init_database("scoreboard.db")
 
-if config['VANILLALEADERBOARD']['Enable'] == "true" or config['BESTANDWORST']['Enable'] == "true" or config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
-    # Load the data
-    print("LOADING VANILLA DATA")
-    vanilla_df, money_df, waystones_df, advancements_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
+# Load the vanilla data
+print("LOADING VANILLA DATA")
+vanilla_df, money_df, waystones_df, advancements_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
 
-if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true" or config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
+# Load the Cobblemon data
+if config['INPUT']['ImportCobblemon'] == "true":
     print("LOADING COBBLEMON DATA")
     cobblemon_df, cobblemon_df2, cobblemon_df3, cobblemon_df4, cobblemon_df5 = loadCobblemonData(config['GLOBALMATRIX']['CreateCSV'], config['GLOBALMATRIX']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'])
 
@@ -1203,20 +1203,20 @@ if config['BESTANDWORST']['Enable'] == "true":
     getVanillaBestAndWorst(vanilla_df, config['BESTANDWORST']['Username'], config['BESTANDWORST']['Cleaning'], config['BESTANDWORST']['CleaningValue'])
 
 # Prepare the counting DF
-count_df = cobblemon_df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
-pokemons_db = pd.read_csv('staticdata/Pokemon.csv')
-legendary_list = pokemons_db.loc[pokemons_db['Legendary'] == True]
-# Don't count twice muk alola and grimer alola
-new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('muk', 'alola', 'status')]].values[0], count_df.loc[[('mukalolan', 'normal', 'status')]].values[0])]
-count_df.loc[[('muk', 'alola', 'status')]] = new_values
-new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('grimer', 'alola', 'status')]].values[0], count_df.loc[[('grimeralolan', 'normal', 'status')]].values[0])]
-count_df.loc[[('grimer', 'alola', 'status')]] = new_values
-count_df.drop('mukalolan', level=0, inplace=True)
-count_df.drop('grimeralolan', level=0, inplace=True)
+if config['INPUT']['ImportCobblemon'] == "true":
+    count_df = cobblemon_df.drop(['caughtTimestamp', 'discoveredTimestamp', 'isShiny'], level=2)
+    pokemons_db = pd.read_csv('staticdata/Pokemon.csv')
+    legendary_list = pokemons_db.loc[pokemons_db['Legendary'] == True]
+    # Don't count twice muk alola and grimer alola
+    new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('muk', 'alola', 'status')]].values[0], count_df.loc[[('mukalolan', 'normal', 'status')]].values[0])]
+    count_df.loc[[('muk', 'alola', 'status')]] = new_values
+    new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('grimer', 'alola', 'status')]].values[0], count_df.loc[[('grimeralolan', 'normal', 'status')]].values[0])]
+    count_df.loc[[('grimer', 'alola', 'status')]] = new_values
+    count_df.drop('mukalolan', level=0, inplace=True)
+    count_df.drop('grimeralolan', level=0, inplace=True)
 
 
-# Other counting features
-if config['COBBLEMONCOUNTINGS']['Enable'] == "true":
+    # Other counting features
     count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
     #print(count_df['times_caught'].sort_values().to_string())
     print("Seen or caught:", len(count_df))
@@ -1245,10 +1245,9 @@ if config['COBBLEMONCOUNTINGS']['Enable'] == "true":
     print("Caught pokemons not found in the db:", len(unknown_list))
     print(unknown_list)
 
-leaderboards = {}
+    leaderboards = {}
 
-# Total leaderboard feature
-if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
+    # Total leaderboard feature
     player_sum = pd.DataFrame((count_df == "CAUGHT").sum().sort_values())
     player_sum['index'] = range(len(player_sum), 0, -1)
     player_sum = player_sum.iloc[::-1]
@@ -1256,10 +1255,10 @@ if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
     leaderboards["cobblemon_total"] = player_sum
-    most_pokemons_leaderboard(player_sum, config, "standard", conn)
+    if config['COBBLEMONLEADERBOARDS']['TotalEnable'] == "true":
+        most_pokemons_leaderboard(player_sum, config, "standard", conn)
 
-# Shiny leaderboard feature
-if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
+    # Shiny leaderboard feature
     player_sum = pd.DataFrame(((cobblemon_df == "True") | (cobblemon_df == True)).sum().sort_values())
     player_sum['index'] = range(len(player_sum), 0, -1)
     player_sum = player_sum.iloc[::-1]
@@ -1267,10 +1266,10 @@ if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
     leaderboards["cobblemon_shiny"] = player_sum
-    most_pokemons_leaderboard(player_sum, config, "shiny", conn)
+    if config['COBBLEMONLEADERBOARDS']['ShinyEnable'] == "true":    
+        most_pokemons_leaderboard(player_sum, config, "shiny", conn)
 
-# Legendary leaderboard feature
-if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
+    # Legendary leaderboard feature
     legs = legendary_list['Cobblemon'].tolist()
     leg_count_df = count_df.loc[count_df.index.get_level_values(0).isin(legs)]
     with warnings.catch_warnings():
@@ -1284,10 +1283,10 @@ if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
     leaderboards["cobblemon_legendary"] = player_sum
-    most_pokemons_leaderboard(player_sum, config, "legendary", conn)
+    if config['COBBLEMONLEADERBOARDS']['LegEnable'] == "true":
+        most_pokemons_leaderboard(player_sum, config, "legendary", conn)
 
-# Money feature
-if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
+    # Money feature
     player_sum = money_df.sort_values('money')
     player_sum['index'] = range(len(player_sum), 0, -1)
     player_sum = player_sum.iloc[::-1]
@@ -1295,7 +1294,8 @@ if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
     player_sum.drop(ignore_names, inplace=True, errors='ignore')
     #print(player_sum)
     leaderboards["cobblemon_money"] = player_sum
-    most_pokemons_leaderboard(player_sum, config, "money",  conn)
+    if config['COBBLEMONLEADERBOARDS']['MoneyEnable'] == "true":
+        most_pokemons_leaderboard(player_sum, config, "money",  conn)
 
 if config['TOPIMAGE']['Enable'] == "true":
     leaderboards_to_show = []
@@ -1314,6 +1314,9 @@ if config['TOPIMAGE']['Enable'] == "true":
             else:
                 leaderboards_to_show.append(getVanillaLeaderboard(vanilla_df, leaderboard_type.split('/')[1], leaderboard_type.split('/')[2], False))
         elif leaderboard_type.split('/')[0] == "cobblemon":
+            if config['INPUT']['ImportCobblemon'] != "true":
+                print("ERROR: trying to use Cobblemon data in tops feature without importing Cobblemon data. Try setting ImportCobblemon to true.")
+                exit()
             if leaderboard_type.split('/')[1] == "pvp":
                 leaderboards_to_show.append(getStandardLeaderboard(cobblemon_df2.loc["totalPvPBattleVictoryCount"]))
             elif leaderboard_type.split('/')[1] == "pvw":
@@ -1332,6 +1335,9 @@ if config['TOPIMAGE']['Enable'] == "true":
                 leaderboards_to_show.append(getStandardLeaderboard(waystones_df['waystones']))
         # Some leaderboards require a special layout on the image
         if leaderboard_type.split('/')[0] == "cobblemon" and leaderboard_type.split('/')[1] == "singletype":
+            if config['INPUT']['ImportCobblemon'] != "true":
+                print("ERROR: trying to use Cobblemon data in tops feature without importing Cobblemon data. Try setting ImportCobblemon to true.")
+                exit()
             special_list.append("singletype")
         else:
             special_list.append(None)

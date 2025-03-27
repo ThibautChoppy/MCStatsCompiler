@@ -4,3 +4,7 @@ openpyxl
 paramiko
 requests
 configparser
+nbt
+pillow
+matplotlib
+networkx

@@ -1,0 +1,10 @@
+pandas
+numpy
+openpyxl
+paramiko
+requests
+configparser
+nbt
+pillow
+matplotlib
+networkx

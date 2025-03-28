@@ -1,5 +1,7 @@
 password.txt
 username.txt
-main_module/temp.csv
-main_module/total.csv
-cobblemon_module/global.csv
+temp.csv
+total.csv
+global.csv
+pokeballs.csv
+scoreboard.db

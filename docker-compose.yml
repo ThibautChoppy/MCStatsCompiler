@@ -9,6 +9,10 @@
 # Set CF_API_KEY in a .env file next to this compose file
 # Refer to https://docker-minecraft-server.readthedocs.io/en/latest/types-and-platforms/mod-platforms/auto-curseforge/#api-key
 
+# TO RUN A LOCALLY FULL COBBLEMON SERVER SETUP
+# ADD YOUR CF_API_KEY TO THE cobblemon-server SERVICE
+# AND UNCOMMENT THE SERVICES BELOW
+
 services:
   # cobblemon-server:
   #   image: itzg/minecraft-server
@@ -28,7 +32,7 @@ services:
   #     VIEW_DISTANCE: "12"
   #     ALLOW_FLIGHT: "true"
   #     DIFFICULTY: "peaceful"
-  #     CF_API_KEY: ""
+  #     CF_API_KEY: ""  <-----------------  # ADD YOUR CF_API_KEY HERE
   #   entrypoint:
   #     - /bin/sh
   #     - "-c"
@@ -53,6 +57,17 @@ services:
     image: ghcr.io/thibautchoppy/minecraft-leaderboard-updater:latest
     build:
       context: .
+    # UNCOMMENT THE ENVIRONMENT VARIABLES BELOW IF YOU WANT TO RUN A FULL COBBLEMON SERVER SETUP LOCALLY
+    # environment:
+    #   DB_PATH: /data/world/scoreboard.db
+    #   STATS_PATH: /data/world/stats
+    #   PLAYERDATA_PATH: /data/world/playerdata
+    #   ADVANCEMENTS_PATH: /data/world/advancements
+    #   COBBLEMON_PLAYERDATA_PATH: /data/world/cobblemonplayerdata
+    #   POKEMON_PCSTORE_PATH: /data/world/pokemon/pcstore
+    #   POKEMON_PARTYSTORE_PATH: /data/world/pokemon/playerpartystore
+    #   USERCACHE_PATH: /data
+    # AND COMMENT OUT THE ENVIRONMENT VARIABLES BELOW
     environment:
       DB_PATH: /data/world/scoreboard.db
       STATS_PATH: /data/world/stats
@@ -63,8 +78,9 @@ services:
       POKEMON_PARTYSTORE_PATH: /data/world/pokemon/playerpartystore
       USERCACHE_PATH: /data/world/usercache
     volumes:
-      - data:/data
-      # - ./data:/data/world:rw
+      # ENABLE THE DOCKER DATA VOLUME BELOW IF YOU WANT TO RUN A FULL COBBLEMON SERVER SETUP LOCALLY
+      # - data:/data
+      - ./data:/data/world:rw
     entrypoint: >
       sh -c 'while true; do
         python main.py;
@@ -88,8 +104,9 @@ services:
       leaderboard-updater:
         condition: service_healthy
     volumes:
-      - data:/data
-      # - ./data:/data/world:rw
+      # ENABLE THE DOCKER DATA VOLUME BELOW IF YOU WANT TO RUN A FULL COBBLEMON SERVER SETUP LOCALLY
+      # - data:/data
+      - ./data:/data/world:rw
     ports:
       - 8080:8080
     healthcheck:
@@ -98,6 +115,7 @@ services:
       timeout: 5s
       retries: 3
 
-volumes:
-  data:
-  downloads:
+  # ENABLE THE DOCKER VOLUMES BELOW IF YOU WANT TO RUN A FULL COBBLEMON SERVER SETUP LOCALLY
+# volumes:
+  # data:
+  # downloads:

@@ -1,10 +1,10 @@
 pandas
 numpy
+configparser
 openpyxl
 paramiko
-requests
-configparser
 nbt
-pillow
-matplotlib
+Pillow
+requests
 networkx
+matplotlib

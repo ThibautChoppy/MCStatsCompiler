@@ -10,56 +10,64 @@
 # Refer to https://docker-minecraft-server.readthedocs.io/en/latest/types-and-platforms/mod-platforms/auto-curseforge/#api-key
 
 services:
-  cobblemon-server:
-    image: itzg/minecraft-server
-    environment:
-      EULA: "true"
-      VERSION: "1.20.1"
-      MEMORY: 8G
-      MODPACK_PLATFORM: AUTO_CURSEFORGE
-      CF_MODPACK_ZIP: /downloads/Cobblemon-Star-Academy.zip
-      CF_SLUG: cobblemon-star-academy
-      WORLD: /downloads/StarAcademyWorld.zip
-      MODRINTH_PROJECTS: |
-        datapack:cobblemon-additions
-        datapack:cobbletowns
-        datapack:poke-costume
-      SPAWN_MONSTERS: "false"
-      VIEW_DISTANCE: "12"
-      ALLOW_FLIGHT: "true"
-      DIFFICULTY: "peaceful"
-      CF_API_KEY: $xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    entrypoint:
-      - /bin/sh
-      - "-c"
-      - |
-        mkdir -p /downloads
-        if [ ! -f "/downloads/Cobblemon-Star-Academy.zip" ]; then curl -L -o /downloads/Cobblemon-Star-Academy.zip https://mediafilez.forgecdn.net/files/6096/259/Cobblemon-%20Star%20Academy-0.1.5.2.1.zip; fi
-        if [ ! -f "/downloads/StarAcademyWorld.zip" ]; then curl -L -o /downloads/StarAcademyWorld.zip https://mediafilez.forgecdn.net/files/6096/498/Star%20Academy%20World.zip; fi
-        /start
-    volumes:
-      - data:/data
-      - downloads:/downloads
-    ports:
-      - "25565:25565"
-    healthcheck:
-      test: ["CMD", "mc-health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+  # cobblemon-server:
+  #   image: itzg/minecraft-server
+  #   environment:
+  #     EULA: "true"
+  #     VERSION: "1.20.1"
+  #     MEMORY: 8G
+  #     MODPACK_PLATFORM: AUTO_CURSEFORGE
+  #     CF_MODPACK_ZIP: /downloads/Cobblemon-Star-Academy.zip
+  #     CF_SLUG: cobblemon-star-academy
+  #     WORLD: /downloads/StarAcademyWorld.zip
+  #     MODRINTH_PROJECTS: |
+  #       datapack:cobblemon-additions
+  #       datapack:cobbletowns
+  #       datapack:poke-costume
+  #     SPAWN_MONSTERS: "false"
+  #     VIEW_DISTANCE: "12"
+  #     ALLOW_FLIGHT: "true"
+  #     DIFFICULTY: "peaceful"
+  #     CF_API_KEY: ""
+  #   entrypoint:
+  #     - /bin/sh
+  #     - "-c"
+  #     - |
+  #       mkdir -p /downloads
+  #       if [ ! -f "/downloads/Cobblemon-Star-Academy.zip" ]; then curl -L -o /downloads/Cobblemon-Star-Academy.zip https://mediafilez.forgecdn.net/files/6096/259/Cobblemon-%20Star%20Academy-0.1.5.2.1.zip; fi
+  #       if [ ! -f "/downloads/StarAcademyWorld.zip" ]; then curl -L -o /downloads/StarAcademyWorld.zip https://mediafilez.forgecdn.net/files/6096/498/Star%20Academy%20World.zip; fi
+  #       /start
+  #   volumes:
+  #     - ./server:/data
+  #     - ./downloads:/downloads
+  #   ports:
+  #     - "25565:25565"
+  #   healthcheck:
+  #     test: ["CMD", "mc-health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
 
   leaderboard-updater:
     image: ghcr.io/thibautchoppy/minecraft-leaderboard-updater:latest
     build:
       context: .
-    depends_on:
-      cobblemon-server:
-        condition: service_healthy
     environment:
-      DB_PATH: /data/scoreboard.db
+      DB_PATH: data/scoreboard.db
     volumes:
-      - data:/data
+      - ./data:/app/data:rw
+    entrypoint: >
+      sh -c 'while true; do
+        python main.py;
+        sleep 300;
+      done'
+    healthcheck:
+      test: ["CMD", "test", "-f", "data/scoreboard.db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   scoreboard-front:
     image: ghcr.io/thibautchoppy/minecraft-leaderboard-frontend:latest
@@ -70,9 +78,9 @@ services:
       DB_PATH: /data/scoreboard.db
     depends_on:
       leaderboard-updater:
-        condition: service_completed_successfully
+        condition: service_healthy
     volumes:
-      - data:/data
+      - ./data:/data:rw
     ports:
       - 8080:8080
     healthcheck:

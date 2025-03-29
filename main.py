@@ -27,45 +27,51 @@ import matplotlib.font_manager as fm
 
 
 # Creation or update of the SQLite table
-def init_database(db_path="scoreboard.db"):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+def init_database(db_path):
+    try:
+        print(f"Initialisation de la base de données à {db_path}...")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    # Table creation for leaderboards
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS standard_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS shiny_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS legendary_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS money_leaderboard (
-            rank INTEGER,
-            player_name TEXT,
-            score INTEGER,
-            last_updated TEXT
-        )
-    ''')
-    conn.commit()
-    return conn
+        # Table creation for leaderboards
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS standard_leaderboard (
+                rank INTEGER,
+                player_name TEXT,
+                score INTEGER,
+                last_updated TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS shiny_leaderboard (
+                rank INTEGER,
+                player_name TEXT,
+                score INTEGER,
+                last_updated TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS legendary_leaderboard (
+                rank INTEGER,
+                player_name TEXT,
+                score INTEGER,
+                last_updated TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS money_leaderboard (
+                rank INTEGER,
+                player_name TEXT,
+                score INTEGER,
+                last_updated TEXT
+            )
+        ''')
+        conn.commit()
+        print("Base de données initialisée avec succès")
+        return conn
+    except sqlite3.Error as e:
+        print(f"Erreur lors de l'initialisation de la base de données : {e}")
+        raise
 
 # List contents of directory and parent directory for debugging
 def list_sftp_directory(sftp, path="."):
@@ -723,25 +729,51 @@ def getCobblemonCaptureCountLeaderboard(df):
     
 def most_pokemons_leaderboard(df, config, type, conn):
     if config['COBBLEMONLEADERBOARDS']['SQLiteOutput'] == "true":
-        cursor = conn.cursor()
-        # Table selection by leaderboard type
-        table_map = {
-            "standard": "standard_leaderboard",
-            "shiny": "shiny_leaderboard",
-            "legendary": "legendary_leaderboard",
-            "money": "money_leaderboard"
-        }
-        table_name = table_map[type]
-        # Clear old data
-        cursor.execute(f"DELETE FROM {table_name}")
-        # New data insertion
-        now = datetime.datetime.now().strftime(config['COBBLEMONLEADERBOARDS']['LastUpdated'])
-        for index, row in df.iterrows():
-            cursor.execute(f'''
-                INSERT INTO {table_name} (rank, player_name, score, last_updated)
-                VALUES (?, ?, ?, ?)
-            ''', (int(row['index']), index, int(row.iloc[0]), now))
-        conn.commit()
+        try:
+            print(f"\nInsertion des données dans la table {type}...")
+            print(f"Données à insérer :\n{df.head()}")
+            print(f"Nombre de lignes : {len(df)}")
+            cursor = conn.cursor()
+            # Table selection by leaderboard type
+            table_map = {
+                "standard": "standard_leaderboard",
+                "shiny": "shiny_leaderboard",
+                "legendary": "legendary_leaderboard",
+                "money": "money_leaderboard"
+            }
+            table_name = table_map[type]
+            print(f"Table cible : {table_name}")
+            # Clear old data
+            cursor.execute(f"DELETE FROM {table_name}")
+            # New data insertion
+            now = datetime.datetime.now().strftime(config['COBBLEMONLEADERBOARDS']['LastUpdated'])
+            print(f"Date de mise à jour : {now}")
+            for idx, row in df.iterrows():
+                try:
+                    rank = int(row['index']) if 'index' in row else int(row[0])
+                    score = int(row.iloc[0]) if 'index' in row else int(row[1])
+                    cursor.execute(f'''
+                        INSERT INTO {table_name} (rank, player_name, score, last_updated)
+                        VALUES (?, ?, ?, ?)
+                    ''', (rank, idx, score, now))
+                except sqlite3.Error as e:
+                    print(f"Erreur lors de l'insertion de la ligne {idx}: {e}")
+                    continue
+            conn.commit()
+            print(f"Données insérées avec succès dans la table {type}")
+            
+            # Vérification des données insérées
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            print(f"Nombre de lignes dans la table {table_name}: {count}")
+            cursor.execute(f"SELECT * FROM {table_name} LIMIT 5")
+            print(f"Premières lignes de la table {table_name}:")
+            for row in cursor.fetchall():
+                print(row)
+        except sqlite3.Error as e:
+            print(f"Erreur lors de l'opération sur la base de données : {e}")
+            conn.rollback()
+            raise
     
     if config['COBBLEMONLEADERBOARDS']['XLSXOutput'] == "true":
         # Load the Excel file
@@ -1166,10 +1198,16 @@ if config['INPUT']['Mode'] not in ['manual', 'local', 'ftp', 'sftp']:
     raise Exception("Invalid input mode: "+config['INPUT']['Mode']+". Check the config.")
 
 # Database initialisation
-if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:
-    conn = init_database("scoreboard.db")
+db_path = os.getenv('DB_PATH', 'scoreboard.db')
+conn = None
+if config['COBBLEMONLEADERBOARDS']['SQLiteOutput'] == "true":
+    try:
+        conn = init_database(db_path)
+    except sqlite3.Error as e:
+        print(f"Erreur fatale lors de l'initialisation de la base de données : {e}")
+        exit(1)
 else:
-    conn = None
+    print("SQLite désactivé dans la configuration")
 
 # Connect to FTP if activated
 ftp_server = None
@@ -1181,9 +1219,6 @@ if config['INPUT']['Mode'] == "sftp":
     transport.connect(username=open("username.txt", "r").read().strip(), password=open("password.txt", "r").read().strip())
     ftp_server = paramiko.SFTPClient.from_transport(transport)
     
-# Database initialisation
-conn = init_database("scoreboard.db")
-
 # Load the vanilla data
 print("LOADING VANILLA DATA")
 vanilla_df, money_df, waystones_df, advancements_df = loadVanillaData(config['VANILLALEADERBOARD']['CreateCSV'], config['VANILLALEADERBOARD']['CSVPath'], config['INPUT']['Mode'], ftp_server, config['INPUT']['FTPPath'], config['INPUT']['LocalPath'], config['VANILLALEADERBOARD']['CreateCSVMoney'], config['VANILLALEADERBOARD']['CSVPathMoney'])
@@ -1208,13 +1243,21 @@ if config['INPUT']['ImportCobblemon'] == "true":
     pokemons_db = pd.read_csv('staticdata/Pokemon.csv')
     legendary_list = pokemons_db.loc[pokemons_db['Legendary'] == True]
     # Don't count twice muk alola and grimer alola
-    new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('muk', 'alola', 'status')]].values[0], count_df.loc[[('mukalolan', 'normal', 'status')]].values[0])]
-    count_df.loc[[('muk', 'alola', 'status')]] = new_values
-    new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('grimer', 'alola', 'status')]].values[0], count_df.loc[[('grimeralolan', 'normal', 'status')]].values[0])]
-    count_df.loc[[('grimer', 'alola', 'status')]] = new_values
-    count_df.drop('mukalolan', level=0, inplace=True)
-    count_df.drop('grimeralolan', level=0, inplace=True)
+    try:
+        if ('muk', 'alola', 'status') in count_df.index and ('mukalolan', 'normal', 'status') in count_df.index:
+            new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('muk', 'alola', 'status')]].values[0], count_df.loc[[('mukalolan', 'normal', 'status')]].values[0])]
+            count_df.loc[[('muk', 'alola', 'status')]] = new_values
+            count_df.drop('mukalolan', level=0, inplace=True)
+    except KeyError:
+        print("Warning: Muk Alola form not found in data")
 
+    try:
+        if ('grimer', 'alola', 'status') in count_df.index and ('grimeralolan', 'normal', 'status') in count_df.index:
+            new_values = ["CAUGHT" if value1 == "CAUGHT" or value2 == "CAUGHT" else 0 for (value1, value2) in zip(count_df.loc[[('grimer', 'alola', 'status')]].values[0], count_df.loc[[('grimeralolan', 'normal', 'status')]].values[0])]
+            count_df.loc[[('grimer', 'alola', 'status')]] = new_values
+            count_df.drop('grimeralolan', level=0, inplace=True)
+    except KeyError:
+        print("Warning: Grimer Alola form not found in data")
 
     # Other counting features
     count_df['times_caught'] = count_df.apply(lambda row: (row == "CAUGHT").sum(), axis=1)
@@ -1396,8 +1439,12 @@ if config['PLAYERCARDS']['Enable'] == "true":
         i += 1
 
 # SQLite close connection
-if config['COBBLEMONLEADERBOARDS']['SQLiteOutput']:
-    conn.close()
+if config['COBBLEMONLEADERBOARDS']['SQLiteOutput'] == "true":
+    try:
+        conn.close()
+        print("Connexion à la base de données SQLite fermée avec succès")
+    except sqlite3.Error as e:
+        print(f"Erreur lors de la fermeture de la connexion à la base de données : {e}")
 
 # Close the Connection to the FTP/SFTP server
 if config['INPUT']['Mode'] == "ftp":

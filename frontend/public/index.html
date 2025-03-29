@@ -6,25 +6,72 @@
   <title>Pokémon Cobblemon Scoreboard</title>
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
   <div class="container">
-    <h1>Pokémon Cobblemon Scoreboard</h1>
-    <div class="tabs">
-      <button class="tab-button active" data-tab="standard">Standard</button>
-      <button class="tab-button" data-tab="shiny">Shiny</button>
-      <button class="tab-button" data-tab="legendary">Légendaire</button>
+    <header>
+      <h1>Pokémon Cobblemon Scoreboard</h1>
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Rechercher un joueur...">
+        <button id="searchButton"><i class="fas fa-search"></i></button>
+      </div>
+    </header>
+
+    <div class="stats-container">
+      <div class="stat-box">
+        <i class="fas fa-users"></i>
+        <span id="totalPlayers">-</span>
+        <span class="stat-label">Joueurs</span>
+      </div>
+      <div class="stat-box">
+        <i class="fas fa-star"></i>
+        <span id="totalScore">-</span>
+        <span class="stat-label">Score Total</span>
+      </div>
     </div>
+
+    <div class="tabs">
+      <button class="tab-button active" data-tab="standard">
+        <i class="fas fa-trophy"></i>
+        Standard
+      </button>
+      <button class="tab-button" data-tab="shiny">
+        <i class="fas fa-sparkles"></i>
+        Shiny
+      </button>
+      <button class="tab-button" data-tab="legendary">
+        <i class="fas fa-crown"></i>
+        Légendaire
+      </button>
+      <button class="tab-button" data-tab="money">
+        <i class="fas fa-coins"></i>
+        Money
+      </button>
+    </div>
+
     <div id="scoreboard" class="scoreboard">
-      <!-- En-tête pour les titres -->
       <div class="header">
         <span>Rang</span>
+        <span>Joueur</span>
         <span>Score</span>
       </div>
-      <!-- Footer pour la dernière mise à jour -->
+      <div id="loading" class="loading">
+        <i class="fas fa-spinner fa-spin"></i>
+      </div>
+      <div id="searchResults" class="search-results"></div>
       <div class="footer" id="lastUpdate"></div>
     </div>
   </div>
+
+  <div id="errorModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Erreur</h2>
+      <p id="errorMessage"></p>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

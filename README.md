@@ -1,6 +1,98 @@
 # MCStatsCompiler
 
-This project aims at taking a bunch of stats data file generated from Minecraft players and outputing nicely formatted statistics.
+A Python script to compile Minecraft server statistics and generate various leaderboards and visualizations.
+
+## Features
+
+- Vanilla Minecraft statistics processing
+- Cobblemon mod statistics processing
+- Multiple leaderboard types:
+  - Standard leaderboard (total Pokémon caught)
+  - Shiny Pokémon leaderboard
+  - Legendary Pokémon leaderboard
+  - Money leaderboard
+- SQLite database output for real-time leaderboard updates
+- Docker support for easy deployment
+- Frontend web interface for displaying leaderboards
+
+## Docker Setup
+
+The project includes Docker support with three main components:
+
+1. **Leaderboard Updater Service**
+   - Runs the main statistics compiler script
+   - Updates every 5 minutes
+   - Stores data in a SQLite database
+   - Health check ensures database exists
+
+2. **Frontend Service**
+   - Web interface for displaying leaderboards
+   - Connects to the SQLite database
+   - Runs on port 8080
+   - Health check ensures service is running
+
+3. **Data Volume**
+   - Shared volume between services
+   - Stores the SQLite database and other data files
+
+### Running with Docker Compose
+
+1. Create a `downloads` directory next to the `docker-compose.yml` file
+2. Download required modpacks into the `downloads` directory
+3. Set up your `CF_API_KEY` in a `.env` file
+4. Run:
+   ```bash
+   docker compose up -d
+   ```
+
+The frontend will be available at `http://localhost:8080`
+
+## Configuration
+
+The script is configured through `config.ini`. Key settings include:
+
+- Input mode (manual, local, FTP, SFTP)
+- Database settings
+- Leaderboard types to generate
+- Visualization options
+
+## Database Structure
+
+The SQLite database contains four main tables:
+
+1. `standard_leaderboard`
+   - Rank
+   - Player name
+   - Score (total Pokémon caught)
+   - Last update timestamp
+
+2. `shiny_leaderboard`
+   - Rank
+   - Player name
+   - Score (shiny Pokémon caught)
+   - Last update timestamp
+
+3. `legendary_leaderboard`
+   - Rank
+   - Player name
+   - Score (legendary Pokémon caught)
+   - Last update timestamp
+
+4. `money_leaderboard`
+   - Rank
+   - Player name
+   - Score (total money)
+   - Last update timestamp
+
+## Requirements
+
+- Python 3.9+
+- Docker and Docker Compose (for containerized deployment)
+- Required Python packages (see `requirements.txt`)
+
+## License
+
+[Your license information here]
 
 ## Fork modification
 
@@ -192,7 +284,7 @@ Vous pouvez maintenant exécuter le script **main.py** avec votre installation P
 ## Problèmes fréquents
 1. Ce script utilise des chemins locaux, assurez-vous donc de l'exécuter depuis le bon dossier ! Si vous obtenez des erreurs liées aux fichiers JSON, il est probable que le script ne les trouve pas.
 2. La fonction de leaderboard Cobblemon ne produit que le tableau XLSX. Pour afficher une image dans le jeu, vous devez toujours convertir le tableau en image, puis le télécharger quelque part. N'hésitez pas à me contacter si vous avez besoin d'aide ou de conseils à ce sujet.
-3. Ce script n'est pas automatique par défaut ; vous devez l'exécuter manuellement périodiquement pour qu'il fonctionne. Optionnellement, vous pouvez configurer quelque chose sur votre propre machine pour l'exécuter automatiquement.
+3. Ce script n'est pas automatique par défaut ; vous devez l'exécuter manuellement périodiquement pour qu'il fonctionne. Optionnellement, vous pouvez configurer quelque chose sur votre propre machine pour l'exécuter automatiquement.
 
 ## Forks intéressantes
 Les forks de ce projet suivantes peuvent potentiellement vous intéresser :

@@ -38,8 +38,8 @@ services:
   #       if [ ! -f "/downloads/StarAcademyWorld.zip" ]; then curl -L -o /downloads/StarAcademyWorld.zip https://mediafilez.forgecdn.net/files/6096/498/Star%20Academy%20World.zip; fi
   #       /start
   #   volumes:
-  #     - ./server:/data
-  #     - ./downloads:/downloads
+  #     - data:/data
+  #     - downloads:/downloads
   #   ports:
   #     - "25565:25565"
   #   healthcheck:
@@ -54,16 +54,24 @@ services:
     build:
       context: .
     environment:
-      DB_PATH: data/scoreboard.db
+      DB_PATH: /data/world/scoreboard.db
+      STATS_PATH: /data/world/stats
+      PLAYERDATA_PATH: /data/world/playerdata
+      ADVANCEMENTS_PATH: /data/world/advancements
+      COBBLEMON_PLAYERDATA_PATH: /data/world/cobblemonplayerdata
+      POKEMON_PCSTORE_PATH: /data/world/pokemon/pcstore
+      POKEMON_PARTYSTORE_PATH: /data/world/pokemon/playerpartystore
+      USERCACHE_PATH: /data/world/usercache
     volumes:
-      - ./data:/app/data:rw
+      - data:/data
+      # - ./data:/data/world:rw
     entrypoint: >
       sh -c 'while true; do
         python main.py;
         sleep 300;
       done'
     healthcheck:
-      test: ["CMD", "test", "-f", "data/scoreboard.db"]
+      test: ["CMD", "test", "-f", "/data/world/scoreboard.db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -75,12 +83,13 @@ services:
       context: frontend
     environment:
       PORT: 8080
-      DB_PATH: /data/scoreboard.db
+      DB_PATH: /data/world/scoreboard.db
     depends_on:
       leaderboard-updater:
         condition: service_healthy
     volumes:
-      - ./data:/data:rw
+      - data:/data
+      # - ./data:/data/world:rw
     ports:
       - 8080:8080
     healthcheck:

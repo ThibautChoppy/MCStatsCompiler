@@ -25,6 +25,15 @@ import matplotlib.colors as mcolors
 import matplotlib.ticker as ticker
 import matplotlib.font_manager as fm
 
+# Variables d'environnement pour les chemins
+DB_PATH = os.getenv('DB_PATH', 'data/scoreboard.db')
+STATS_PATH = os.getenv('STATS_PATH', 'data/stats')
+PLAYERDATA_PATH = os.getenv('PLAYERDATA_PATH', 'data/playerdata')
+ADVANCEMENTS_PATH = os.getenv('ADVANCEMENTS_PATH', 'data/advancements')
+COBBLEMON_PLAYERDATA_PATH = os.getenv('COBBLEMON_PLAYERDATA_PATH', 'data/cobblemonplayerdata')
+POKEMON_PCSTORE_PATH = os.getenv('POKEMON_PCSTORE_PATH', 'data/pokemon/pcstore')
+POKEMON_PARTYSTORE_PATH = os.getenv('POKEMON_PARTYSTORE_PATH', 'data/pokemon/playerpartystore')
+USERCACHE_PATH = os.getenv('USERCACHE_PATH', 'data/usercache')
 
 # Creation or update of the SQLite table
 def init_database(db_path):
@@ -95,7 +104,6 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
     advancements = pd.DataFrame()
     
     if inputmode == "ftp" or inputmode == "sftp":
-        
         if ftppath == "":
             ftppath_complete_stats = "world/stats"
             ftppath_complete_playerdata = "world/playerdata"
@@ -106,9 +114,9 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             ftppath_complete_advancements = ftppath + "/world/advancements"
         if inputmode == "ftp":
             ftpserver.cwd(ftppath)
-            with open("data/usercache/usercache.json", "wb") as file:
+            with open(f"{USERCACHE_PATH}/usercache.json", "wb") as file:
                 ftpserver.retrbinary(f"RETR usercache.json", file.write)
-            names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
+            names = pd.DataFrame(json.load(open(f"{USERCACHE_PATH}/usercache.json", "r")))
             # Go back to root
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
             # Get directories
@@ -122,12 +130,12 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 list_sftp_directory(ftpserver)
                 raise
             try:
-                ftpserver.get("usercache.json", "data/usercache/usercache.json")
+                ftpserver.get("usercache.json", f"{USERCACHE_PATH}/usercache.json")
             except IOError:
                 print("Failed to get usercache.json")
                 list_sftp_directory(ftpserver)
                 raise
-            names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
+            names = pd.DataFrame(json.load(open(f"{USERCACHE_PATH}/usercache.json", "r")))
             try:
                 current_path = ftpserver.getcwd()
                 depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
@@ -142,7 +150,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 raise
 
         # Start by removing current data files in local
-        for folder in ["data/stats", "data/playerdata", "data/advancements"]:
+        for folder in [STATS_PATH, PLAYERDATA_PATH, ADVANCEMENTS_PATH]:
             for filename in os.listdir(folder):
                 file_path = os.path.join(folder, filename)
                 try:
@@ -160,7 +168,7 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
             filename = filename.split("/")[-1]
             print("Now processing", filename)
             # Download the file to process
-            local_file = "data/stats/"+filename
+            local_file = f"{STATS_PATH}/{filename}"
             with open(local_file, "wb") as file:
                 if inputmode == "ftp":
                     ftpserver.retrbinary(f"RETR {filename}", file.write)
@@ -281,17 +289,17 @@ def loadVanillaData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpath
                 ftpserver.chdir("../" * depth)
     else:
         if inputmode == "manual":
-            names_file = open('data/usercache/usercache.json', 'r')
+            names_file = open(os.path.join(USERCACHE_PATH, 'usercache.json'), 'r')
         elif inputmode == "local":
-            names_file = open(localpath+'/usercache.json', 'r')
+            names_file = open(os.path.join(localpath, 'usercache.json'), 'r')
         names = pd.DataFrame(json.load(names_file))
         if inputmode == "manual":
-            playerdata_path = 'data/playerdata'
-            stats_path = 'data/stats'
-            advancements_path = 'data/advancements'
+            playerdata_path = PLAYERDATA_PATH
+            stats_path = STATS_PATH
+            advancements_path = ADVANCEMENTS_PATH
         if inputmode == "local":
-            playerdata_path = localpath+'/world/playerdata'
-            advancements_path = localpath+'/world/advancements'
+            playerdata_path = os.path.join(localpath, 'world/playerdata')
+            advancements_path = os.path.join(localpath, 'world/advancements')
             
         # Stats
         for filename in os.listdir(stats_path):
@@ -389,9 +397,9 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
             ftppath_complete = ftppath + "/world/cobblemonplayerdata"
         if inputmode == "ftp":
             ftpserver.cwd(ftppath)
-            with open("data/usercache/usercache.json", "wb") as file:
+            with open(f"{USERCACHE_PATH}/usercache.json", "wb") as file:
                 ftpserver.retrbinary(f"RETR usercache.json", file.write)
-            names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
+            names = pd.DataFrame(json.load(open(f"{USERCACHE_PATH}/usercache.json", "r")))
             # Go back to root
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
             # Get directories
@@ -405,12 +413,12 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 list_sftp_directory(ftpserver)
                 raise
             try:
-                ftpserver.get("usercache.json", "data/usercache/usercache.json")
+                ftpserver.get("usercache.json", f"{USERCACHE_PATH}/usercache.json")
             except IOError:
                 print("Failed to get usercache.json")
                 list_sftp_directory(ftpserver)
                 raise
-            names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
+            names = pd.DataFrame(json.load(open(f"{USERCACHE_PATH}/usercache.json", "r")))
             try:
                 current_path = ftpserver.getcwd()
                 depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
@@ -425,8 +433,8 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 raise
         
         # Start by removing current data files in local
-        for filename in os.listdir("data/cobblemonplayerdata"):
-            file_path = os.path.join("data/cobblemonplayerdata", filename)
+        for filename in os.listdir(COBBLEMON_PLAYERDATA_PATH):
+            file_path = os.path.join(COBBLEMON_PLAYERDATA_PATH, filename)
             try:
                 if filename == ".gitignore":
                     continue
@@ -449,14 +457,14 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 filenames = ftpserver.listdir()
             
             # Create the sub-folder on the local level
-            os.mkdir("data/cobblemonplayerdata/"+subfolder)
+            os.makedirs(os.path.join(COBBLEMON_PLAYERDATA_PATH, subfolder), exist_ok=True)
             for filename in filenames:
                 if filename == "." or filename == "..":
                     continue
                 print("Now processing", filename)
                 
                 # Download the file to process
-                local_file = "data/cobblemonplayerdata/"+subfolder+"/"+filename
+                local_file = os.path.join(COBBLEMON_PLAYERDATA_PATH, subfolder, filename)
                 with open(local_file, "wb") as file:
                     if inputmode == "ftp":
                         ftpserver.retrbinary(f"RETR {filename}", file.write)
@@ -560,14 +568,14 @@ def loadCobblemonData(csvtoggle, csvpath, inputmode, ftpserver, ftppath, localpa
                 ftpserver.chdir("../" * depth)
     else:
         if inputmode == "manual":
-            names_file = open('data/usercache/usercache.json', 'r')
+            names_file = open(os.path.join(USERCACHE_PATH, 'usercache.json'), 'r')
         elif inputmode == "local":
-            names_file = open(localpath+'/usercache.json', 'r')
+            names_file = open(os.path.join(localpath, 'usercache.json'), 'r')
         names = pd.DataFrame(json.load(names_file))
         if inputmode == "manual":
-            path = 'data/cobblemonplayerdata'
+            path = COBBLEMON_PLAYERDATA_PATH
         if inputmode == "local":
-            path = localpath+'/world/cobblemonplayerdata'
+            path = os.path.join(localpath, 'world/cobblemonplayerdata')
         i = -1
         for dirpath, dirnames, filenames in os.walk(path):
             if len(dirnames) > 0:
@@ -954,9 +962,9 @@ def stats_pokeballs(config, ftpserver):
             ftppath_complete = config['INPUT']['FTPPath'] + "/world/pokemon/pcstore"
         if config['INPUT']['Mode'] == "ftp":
             ftpserver.cwd(config['INPUT']['FTPPath'])
-            with open("data/usercache/usercache.json", "wb") as file:
+            with open(f"{USERCACHE_PATH}/usercache.json", "wb") as file:
                 ftpserver.retrbinary(f"RETR usercache.json", file.write)
-            names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
+            names = pd.DataFrame(json.load(open(f"{USERCACHE_PATH}/usercache.json", "r")))
             # Go back to root
             ftpserver.cwd("../" * (len(ftpserver.pwd().split("/"))-1))
             # Get directories
@@ -970,12 +978,12 @@ def stats_pokeballs(config, ftpserver):
                 list_sftp_directory(ftpserver)
                 raise
             try:
-                ftpserver.get("usercache.json", "data/usercache/usercache.json")
+                ftpserver.get("usercache.json", f"{USERCACHE_PATH}/usercache.json")
             except IOError:
                 print("Failed to get usercache.json")
                 list_sftp_directory(ftpserver)
                 raise
-            names = pd.DataFrame(json.load(open("data/usercache/usercache.json", "r")))
+            names = pd.DataFrame(json.load(open(f"{USERCACHE_PATH}/usercache.json", "r")))
             try:
                 current_path = ftpserver.getcwd()
                 depth = len([x for x in current_path.split("/") if x]) if current_path != "/" else 0
@@ -990,8 +998,8 @@ def stats_pokeballs(config, ftpserver):
                 raise
         
         # Start by removing current data files in local
-        for filename in os.listdir("data/pokemon/pcstore"):
-            file_path = os.path.join("data/pokemon/pcstore", filename)
+        for filename in os.listdir(POKEMON_PCSTORE_PATH):
+            file_path = os.path.join(POKEMON_PCSTORE_PATH, filename)
             try:
                 if filename == ".gitignore":
                     continue
@@ -1001,8 +1009,8 @@ def stats_pokeballs(config, ftpserver):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print('Failed to remove %s. Reason: %s' % (file_path, e))
-        for filename in os.listdir("data/pokemon/playerpartystore"):
-            file_path = os.path.join("data/pokemon/playerpartystore", filename)
+        for filename in os.listdir(POKEMON_PARTYSTORE_PATH):
+            file_path = os.path.join(POKEMON_PARTYSTORE_PATH, filename)
             try:
                 if filename == ".gitignore":
                     continue
@@ -1025,14 +1033,14 @@ def stats_pokeballs(config, ftpserver):
                 filenames = ftpserver.listdir()
             
             # Create the sub-folder on the local level
-            os.mkdir("data/pokemon/pcstore/"+subfolder)
+            os.makedirs(os.path.join(POKEMON_PCSTORE_PATH, subfolder), exist_ok=True)
             for filename in filenames:
                 if filename == "." or filename == "..":
                     continue
                 print("Now processing", filename)
                 
                 # Download the file to process
-                local_file = "data/pokemon/pcstore/"+subfolder+"/"+filename
+                local_file = os.path.join(POKEMON_PCSTORE_PATH, subfolder, filename)
                 with open(local_file, "wb") as file:
                     if config['INPUT']['Mode'] == "ftp":
                         ftpserver.retrbinary(f"RETR {filename}", file.write)
@@ -1067,14 +1075,14 @@ def stats_pokeballs(config, ftpserver):
                 ftpserver.chdir("../" * depth)
     else:
         if config['INPUT']['Mode'] == "manual":
-            names_file = open('data/usercache/usercache.json', 'r')
+            names_file = open(os.path.join(USERCACHE_PATH, 'usercache.json'), 'r')
         elif config['INPUT']['Mode'] == "local":
-            names_file = open(config['INPUT']['LocalPath']+'/usercache.json', 'r')
+            names_file = open(os.path.join(localpath, 'usercache.json'), 'r')
         names = pd.DataFrame(json.load(names_file))
         if config['INPUT']['Mode'] == "manual":
-            path = 'data/pokemon/pcstore'
+            path = POKEMON_PCSTORE_PATH
         if config['INPUT']['Mode'] == "local":
-            path = config['INPUT']['LocalPath']+'/world/pokemon/pcstore'
+            path = os.path.join(config['INPUT']['LocalPath'], 'world/pokemon/pcstore')
         i = -1
         for dirpath, dirnames, filenames in os.walk(path):
             if len(dirnames) > 0:
@@ -1198,11 +1206,10 @@ if config['INPUT']['Mode'] not in ['manual', 'local', 'ftp', 'sftp']:
     raise Exception("Invalid input mode: "+config['INPUT']['Mode']+". Check the config.")
 
 # Database initialisation
-db_path = os.getenv('DB_PATH', 'scoreboard.db')
 conn = None
 if config['COBBLEMONLEADERBOARDS']['SQLiteOutput'] == "true":
     try:
-        conn = init_database(db_path)
+        conn = init_database(DB_PATH)
     except sqlite3.Error as e:
         print(f"Erreur fatale lors de l'initialisation de la base de données : {e}")
         exit(1)
